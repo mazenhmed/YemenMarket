@@ -101,34 +101,7 @@ const Login = () => {
             </button>
           </form>
 
-          {/* Demo Accounts */}
-          <div className="demo-accounts">
-            <p className="demo-title">🔑 حسابات تجريبية للاختبار:</p>
-            <div className="demo-accounts-grid">
-              <button className="demo-account-btn admin-demo" onClick={() => fillDemoAccount(demoAccounts[0])}>
-                <span className="demo-role-icon">🛡️</span>
-                <div>
-                  <strong>مدير المنصة</strong>
-                  <small>admin / admin123</small>
-                </div>
-              </button>
-              <button className="demo-account-btn vendor-demo" onClick={() => fillDemoAccount(demoAccounts[1])}>
-                <span className="demo-role-icon">🏪</span>
-                <div>
-                  <strong>صاحب متجر</strong>
-                  <small>vendor / vendor123</small>
-                </div>
-              </button>
-              <button className="demo-account-btn customer-demo" onClick={() => fillDemoAccount(demoAccounts[2])}>
-                <span className="demo-role-icon">🛒</span>
-                <div>
-                  <strong>عميل</strong>
-                  <small>customer / customer123</small>
-                </div>
-              </button>
-            </div>
-          </div>
-
+          
           <div className="auth-footer">
             <p>ليس لديك حساب؟ <Link to="/register">إنشاء حساب جديد</Link></p>
           </div>
