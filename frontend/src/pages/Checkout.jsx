@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { createOrder, validateCoupon, getPaymentAccounts, calculateShipping } from '../services/api';
+import { createOrder, validateCoupon, getPaymentAccounts, calculateShipping, getVendorPublicPaymentAccounts } from '../services/api';
 
 const PAYMENT_METHODS = [
   { value: 'cash', label: 'الدفع عند الاستلام', desc: 'ادفع نقداً عند وصول الطلب', icon: '💵', color: '#10b981' },
@@ -40,10 +40,30 @@ const Checkout = () => {
   });
 
   useEffect(() => {
-    getPaymentAccounts().then(res => {
-      setPaymentAccounts(res.data.results || res.data || []);
-    }).catch(() => {});
-  }, []);
+    const fetchPaymentAccounts = async () => {
+      try {
+        // Try to get vendor accounts from the first vendor in cart
+        const vendorId = cartItems.length > 0 ? cartItems[0]?.vendor_id || cartItems[0]?.vendor : null;
+        if (vendorId) {
+          const vendorRes = await getVendorPublicPaymentAccounts(vendorId);
+          const vendorAccounts = vendorRes.data || [];
+          if (vendorAccounts.length > 0) {
+            setPaymentAccounts(vendorAccounts);
+            return;
+          }
+        }
+        // Fallback to platform accounts
+        const platformRes = await getPaymentAccounts();
+        setPaymentAccounts(platformRes.data.results || platformRes.data || []);
+      } catch {
+        // Final fallback
+        getPaymentAccounts().then(res => {
+          setPaymentAccounts(res.data.results || res.data || []);
+        }).catch(() => {});
+      }
+    };
+    fetchPaymentAccounts();
+  }, [cartItems]);
 
   // Calculate shipping when city changes
   useEffect(() => {

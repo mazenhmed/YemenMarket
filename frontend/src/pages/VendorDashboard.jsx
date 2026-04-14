@@ -5,7 +5,8 @@ import { useToast } from '../context/ToastContext';
 import {
   getVendorProducts, getOrders, createProduct, updateProduct, getCategories, 
   updateOrderStatus, getMyStore, updateStore, createStore,
-  getVendorPaymentAccounts, createVendorPaymentAccount, updateVendorPaymentAccount, deleteVendorPaymentAccount
+  getVendorPaymentAccounts, createVendorPaymentAccount, updateVendorPaymentAccount, deleteVendorPaymentAccount,
+  getPaymentAccounts
 } from '../services/api';
 import LoadingSpinner from '../components/LoadingSpinner';
 
@@ -58,6 +59,12 @@ const VendorDashboard = () => {
   const defaultPaymentForm = { provider: 'floosak', account_name: '', account_number: '', bank_name: '', instructions: '', is_active: true };
   const [paymentForm, setPaymentForm] = useState(defaultPaymentForm);
 
+  // Commission state
+  const [totalSalesAmount, setTotalSalesAmount] = useState(0);
+  const [commissionRate, setCommissionRate] = useState(5);
+  const [platformAccounts, setPlatformAccounts] = useState([]);
+  const [showCommissionModal, setShowCommissionModal] = useState(false);
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -91,6 +98,10 @@ const VendorDashboard = () => {
 
         // Build stats from real data
         const totalSales = prods.reduce((s, p) => s + (Number(p.price) * (p.sold_count || 0)), 0);
+        const commission = storeRes.data?.commission_rate || 5;
+        setTotalSalesAmount(totalSales);
+        setCommissionRate(commission);
+
         const avgRating = prods.length > 0
           ? (prods.reduce((s, p) => s + Number(p.rating || 0), 0) / prods.length).toFixed(1)
           : '-';
@@ -102,6 +113,12 @@ const VendorDashboard = () => {
           { label: 'إجمالي المبيعات', value: totalSales.toLocaleString() + ' ريال', icon: '💰', color: '#f59e0b' },
           { label: 'متوسط التقييم', value: avgRating, icon: '⭐', color: '#f43f5e' },
         ]);
+
+        // Fetch platform payment accounts for commission transfer
+        getPaymentAccounts().then(r => {
+          const accs = r.data.results || r.data || [];
+          setPlatformAccounts(Array.isArray(accs) ? accs : []);
+        }).catch(() => {});
       } catch (error) {
         if (error.response && error.response.status === 401) {
           toast.error('يجب تسجيل الدخول كبائع لعرض إحصائياتك');
@@ -367,6 +384,71 @@ const VendorDashboard = () => {
             </div>
           ))}
         </div>
+
+        {/* Commission Banner */}
+        {totalSalesAmount > 0 && (
+          <div style={{
+            background: 'linear-gradient(135deg, #1e293b, #0f172a)',
+            borderRadius: '16px',
+            padding: '1.5rem 2rem',
+            marginBottom: '2rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '1.5rem',
+            border: '1px solid rgba(255,255,255,0.08)',
+            boxShadow: '0 8px 30px rgba(0,0,0,0.2)'
+          }}>
+            <div style={{ display: 'flex', gap: '3rem', flexWrap: 'wrap' }}>
+              {/* Total Sales */}
+              <div>
+                <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginBottom: '0.3rem', fontWeight: 600, letterSpacing: '0.05em' }}>💰 إجمالي مبيعاتك</div>
+                <div style={{ fontSize: '1.7rem', fontWeight: 800, color: '#34d399' }}>
+                  {totalSalesAmount.toLocaleString()} <span style={{ fontSize: '1rem', fontWeight: 500 }}>ريال</span>
+                </div>
+              </div>
+              {/* Commission Due */}
+              <div>
+                <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginBottom: '0.3rem', fontWeight: 600, letterSpacing: '0.05em' }}>🏛️ نسبة المنصة ({commissionRate}%)</div>
+                <div style={{ fontSize: '1.7rem', fontWeight: 800, color: '#f59e0b' }}>
+                  {((totalSalesAmount * commissionRate) / 100).toLocaleString()} <span style={{ fontSize: '1rem', fontWeight: 500 }}>ريال</span>
+                </div>
+              </div>
+              {/* Net Amount */}
+              <div>
+                <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginBottom: '0.3rem', fontWeight: 600, letterSpacing: '0.05em' }}>✅ صافي أرباحك</div>
+                <div style={{ fontSize: '1.7rem', fontWeight: 800, color: '#818cf8' }}>
+                  {(totalSalesAmount - (totalSalesAmount * commissionRate) / 100).toLocaleString()} <span style={{ fontSize: '1rem', fontWeight: 500 }}>ريال</span>
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowCommissionModal(true)}
+              style={{
+                background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+                color: 'white',
+                border: 'none',
+                padding: '0.85rem 1.8rem',
+                borderRadius: '12px',
+                fontFamily: 'inherit',
+                fontWeight: 700,
+                fontSize: '1rem',
+                cursor: 'pointer',
+                boxShadow: '0 4px 15px rgba(245,158,11,0.4)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                transition: 'all 0.3s',
+                whiteSpace: 'nowrap'
+              }}
+              onMouseOver={e => e.currentTarget.style.transform='translateY(-2px)'}
+              onMouseOut={e => e.currentTarget.style.transform='translateY(0)'}
+            >
+              🏛️ تحويل نسبة المنصة
+            </button>
+          </div>
+        )}
 
         {/* Tabs */}
         <div className="dashboard-tabs">
@@ -731,6 +813,85 @@ const VendorDashboard = () => {
                 {savingPayment ? 'جارِ الحفظ...' : '💾 حفظ الحساب'}
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Commission Transfer Modal */}
+      {showCommissionModal && (
+        <div className="modal-overlay" onClick={() => setShowCommissionModal(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '550px' }}>
+            <div className="modal-header" style={{ background: 'linear-gradient(135deg, #1e293b, #0f172a)', borderRadius: '14px 14px 0 0', padding: '1.5rem 2rem' }}>
+              <div>
+                <h2 style={{ color: 'white', margin: 0 }}>🏛️ تحويل نسبة المنصة</h2>
+                <p style={{ color: '#94a3b8', margin: '0.3rem 0 0', fontSize: '0.9rem' }}>قم بتحويل النسبة المستحقة لمدير المنصة</p>
+              </div>
+              <button className="modal-close" onClick={() => setShowCommissionModal(false)} style={{ color: 'white', background: 'rgba(255,255,255,0.1)' }}>✕</button>
+            </div>
+
+            <div style={{ padding: '1.5rem 2rem' }}>
+              {/* Commission Summary */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
+                <div style={{ background: 'linear-gradient(135deg, #ecfdf5, #d1fae5)', borderRadius: '12px', padding: '1rem', border: '1px solid #6ee7b7', textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.8rem', color: '#059669', fontWeight: 700, marginBottom: '0.3rem' }}>💰 إجمالي مبيعاتك</div>
+                  <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#065f46' }}>{totalSalesAmount.toLocaleString()}</div>
+                  <div style={{ fontSize: '0.8rem', color: '#059669' }}>ريال يمني</div>
+                </div>
+                <div style={{ background: 'linear-gradient(135deg, #fffbeb, #fef3c7)', borderRadius: '12px', padding: '1rem', border: '1px solid #fde68a', textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.8rem', color: '#d97706', fontWeight: 700, marginBottom: '0.3rem' }}>🏛️ نسبة المنصة ({commissionRate}%)</div>
+                  <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#92400e' }}>{((totalSalesAmount * commissionRate) / 100).toLocaleString()}</div>
+                  <div style={{ fontSize: '0.8rem', color: '#d97706' }}>ريال يمني</div>
+                </div>
+              </div>
+
+              <h4 style={{ color: 'var(--text-primary)', marginBottom: '1rem', paddingBottom: '0.5rem', borderBottom: '1px solid #e2e8f0' }}>
+                📋 حسابات مدير المنصة للاستلام:
+              </h4>
+
+              {platformAccounts.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)', background: '#f8fafc', borderRadius: '10px' }}>
+                  <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>📭</div>
+                  <p>لم يتم إعداد حسابات الدفع بعد. تواصل مع مدير المنصة.</p>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', maxHeight: '280px', overflowY: 'auto' }}>
+                  {platformAccounts.map(acc => {
+                    const icons = { floosak: '📱', jawali: '📲', kuraimi: '🏦', transfer: '🏛️', cash: '💵' };
+                    const providerNames = { floosak: 'فلوسك', jawali: 'جوالي', kuraimi: 'كريمي', transfer: 'تحويل بنكي', cash: 'استلام نقدي' };
+                    return (
+                      <div key={acc.id} style={{ background: '#f8fafc', borderRadius: '12px', padding: '1rem 1.2rem', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+                          <span style={{ fontSize: '1.8rem' }}>{icons[acc.provider] || '💳'}</span>
+                          <div>
+                            <div style={{ fontWeight: 700, color: '#1e293b' }}>{providerNames[acc.provider] || acc.provider}</div>
+                            <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{acc.account_name}</div>
+                          </div>
+                        </div>
+                        <div style={{ background: 'white', padding: '0.6rem 1rem', borderRadius: '8px', border: '1px solid #e2e8f0', fontWeight: 700, fontSize: '1.15rem', letterSpacing: '0.05em', color: '#0f172a', direction: 'ltr', textAlign: 'left' }}>
+                          {acc.account_number}
+                        </div>
+                        {acc.bank_name && <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>🏦 {acc.bank_name}</div>}
+                        {acc.instructions && (
+                          <div style={{ fontSize: '0.82rem', color: '#6b7280', background: '#fffbeb', padding: '0.5rem 0.8rem', borderRadius: '6px', fontStyle: 'italic' }}>
+                            💡 {acc.instructions}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              <div style={{ marginTop: '1.5rem', padding: '1rem', background: '#eff6ff', borderRadius: '10px', border: '1px solid #bfdbfe' }}>
+                <p style={{ margin: 0, fontSize: '0.85rem', color: '#1e40af', lineHeight: 1.6 }}>
+                  ℹ️ بعد إتمام التحويل، يرجى إرسال صورة السند أو رقم العملية إلى مدير المنصة عبر واتساب أو البريد الإلكتروني لتأكيد الدفع.
+                </p>
+              </div>
+
+              <button className="btn btn-primary btn-full" onClick={() => setShowCommissionModal(false)} style={{ marginTop: '1.2rem' }}>
+                ✅ حسناً، تم الاطلاع
+              </button>
+            </div>
           </div>
         </div>
       )}
