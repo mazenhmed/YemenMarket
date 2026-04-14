@@ -117,4 +117,11 @@ export const getShipmentTracking = (params) => API.get('/shipping/tracking/', { 
 export const updateShipmentTracking = (id, data) => API.patch(`/shipping/tracking/${id}/`, data);
 export const createShipmentTracking = (data) => API.post('/shipping/tracking/', data);
 
+// ========== Vendor Payment Accounts ==========
+export const getVendorPaymentAccounts = () => API.get('/vendors/payment-accounts/');
+export const createVendorPaymentAccount = (data) => API.post('/vendors/payment-accounts/', data);
+export const updateVendorPaymentAccount = (id, data) => API.patch(`/vendors/payment-accounts/${id}/`, data);
+export const deleteVendorPaymentAccount = (id) => API.delete(`/vendors/payment-accounts/${id}/`);
+export const getVendorPublicPaymentAccounts = (vendorId) => API.get(`/vendors/payment-accounts/public/?vendor_id=${vendorId}`);
+
 export default API;

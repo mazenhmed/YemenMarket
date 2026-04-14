@@ -34,3 +34,29 @@ class Vendor(models.Model):
     @property
     def is_approved(self):
         return self.status == 'approved'
+
+
+class VendorPaymentAccount(models.Model):
+    """حسابات الدفع الخاصة بكل بائع لاستقبال تحويلات العملاء"""
+    PROVIDER_CHOICES = (
+        ('transfer', 'تحويل بنكي'),
+        ('floosak', 'فلوسك'),
+        ('jawali', 'جوالي'),
+        ('kuraimi', 'كريمي'),
+        ('cash', 'استلام نقدي'),
+    )
+    vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE, related_name='payment_accounts')
+    provider = models.CharField(max_length=20, choices=PROVIDER_CHOICES)
+    account_name = models.CharField(max_length=255, help_text="اسم صاحب الحساب")
+    account_number = models.CharField(max_length=100, help_text="رقم الحساب أو المحفظة")
+    bank_name = models.CharField(max_length=255, blank=True, help_text="اسم البنك (للتحويل البنكي)")
+    instructions = models.TextField(blank=True, help_text="تعليمات الدفع للعميل")
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['provider']
+        unique_together = ('vendor', 'provider')
+
+    def __str__(self):
+        return f"{self.vendor.store_name} - {self.get_provider_display()} - {self.account_number}"

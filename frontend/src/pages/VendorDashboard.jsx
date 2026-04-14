@@ -4,7 +4,8 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import {
   getVendorProducts, getOrders, createProduct, updateProduct, getCategories, 
-  updateOrderStatus, getMyStore, updateStore, createStore
+  updateOrderStatus, getMyStore, updateStore, createStore,
+  getVendorPaymentAccounts, createVendorPaymentAccount, updateVendorPaymentAccount, deleteVendorPaymentAccount
 } from '../services/api';
 import LoadingSpinner from '../components/LoadingSpinner';
 
@@ -49,15 +50,26 @@ const VendorDashboard = () => {
   });
   const [updatingSettings, setUpdatingSettings] = useState(false);
 
+  // Payment Accounts State
+  const [paymentAccounts, setPaymentAccounts] = useState([]);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [editingPayment, setEditingPayment] = useState(null);
+  const [savingPayment, setSavingPayment] = useState(false);
+  const defaultPaymentForm = { provider: 'floosak', account_name: '', account_number: '', bank_name: '', instructions: '', is_active: true };
+  const [paymentForm, setPaymentForm] = useState(defaultPaymentForm);
+
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [prodRes, ordersRes, catRes, storeRes] = await Promise.all([
+        const [prodRes, ordersRes, catRes, storeRes, payRes] = await Promise.all([
           getVendorProducts(),
           getOrders(),
           getCategories(),
-          getMyStore().catch(() => ({ data: null }))
+          getMyStore().catch(() => ({ data: null })),
+          getVendorPaymentAccounts().catch(() => ({ data: [] }))
         ]);
+        const pays = payRes.data.results || payRes.data || [];
+        setPaymentAccounts(Array.isArray(pays) ? pays : []);
 
         const prods = prodRes.data.results || prodRes.data || [];
         const ords = ordersRes.data.results || ordersRes.data || [];
@@ -361,6 +373,7 @@ const VendorDashboard = () => {
           <button className={`dash-tab ${activeTab === 'overview' ? 'active' : ''}`} onClick={() => setActiveTab('overview')}>📊 نظرة عامة</button>
           <button className={`dash-tab ${activeTab === 'products' ? 'active' : ''}`} onClick={() => setActiveTab('products')}>📦 المنتجات ({products.length})</button>
           <button className={`dash-tab ${activeTab === 'orders' ? 'active' : ''}`} onClick={() => setActiveTab('orders')}>🛒 الطلبات ({orders.length})</button>
+          <button className={`dash-tab ${activeTab === 'payments' ? 'active' : ''}`} onClick={() => setActiveTab('payments')}>💳 طرق الدفع</button>
           <button className={`dash-tab ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')}>⚙️ الإعدادات</button>
         </div>
 
@@ -428,6 +441,59 @@ const VendorDashboard = () => {
                       <span>
                         <button className="action-btn success" onClick={() => openEditModal(p)}>✏️ تعديل</button>
                       </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Payment Accounts Tab */}
+        {activeTab === 'payments' && (
+          <div className="dashboard-section">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h3 style={{ margin: 0 }}>💳 حسابات الدفع الخاصة بمتجرك</h3>
+              <button className="btn btn-primary" onClick={() => { setEditingPayment(null); setPaymentForm(defaultPaymentForm); setShowPaymentModal(true); }}>➕ إضافة حساب</button>
+            </div>
+            <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem', fontSize: '0.95rem' }}>
+              هذه الحسابات ستظهر للعملاء عند الدفع لطلباتهم من متجرك. تأكد من صحة البيانات.
+            </p>
+            {paymentAccounts.length === 0 ? (
+              <div className="empty-state">
+                <span className="empty-icon">💳</span>
+                <h3>لم تضف أي حساب دفع بعد</h3>
+                <p>أضف حسابات الدفع الخاصة بك (فلوسك، جوالي، كريمي، تحويل بنكي) لكي يتمكن العملاء من إرسال الدفعات إليك.</p>
+                <button className="btn btn-primary" onClick={() => { setEditingPayment(null); setPaymentForm(defaultPaymentForm); setShowPaymentModal(true); }}>➕ إضافة أول حساب</button>
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.2rem' }}>
+                {paymentAccounts.map(acc => {
+                  const icons = { floosak: '📱', jawali: '📲', kuraimi: '🏦', transfer: '🏛️', cash: '💵' };
+                  const providerNames = { floosak: 'فلوسك', jawali: 'جوالي', kuraimi: 'كريمي', transfer: 'تحويل بنكي', cash: 'استلام نقدي' };
+                  return (
+                    <div key={acc.id} style={{ background: acc.is_active ? 'linear-gradient(135deg, #f0fdf4, #ecfdf5)' : '#f8fafc', border: `1.5px solid ${acc.is_active ? '#6ee7b7' : '#e2e8f0'}`, borderRadius: '14px', padding: '1.4rem', position: 'relative' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+                          <span style={{ fontSize: '2rem' }}>{icons[acc.provider] || '💳'}</span>
+                          <div>
+                            <div style={{ fontWeight: 700, fontSize: '1.05rem', color: '#1e293b' }}>{providerNames[acc.provider]}</div>
+                            <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{acc.account_name}</div>
+                          </div>
+                        </div>
+                        <span style={{ fontSize: '0.75rem', padding: '0.2rem 0.6rem', borderRadius: '999px', background: acc.is_active ? '#dcfce7' : '#fee2e2', color: acc.is_active ? '#166534' : '#991b1b', fontWeight: 600 }}>
+                          {acc.is_active ? '✅ فعّال' : '⛔ معطل'}
+                        </span>
+                      </div>
+                      <div style={{ marginTop: '1rem', padding: '0.8rem', background: 'rgba(255,255,255,0.7)', borderRadius: '8px', border: '1px solid rgba(0,0,0,0.05)' }}>
+                        <div style={{ fontWeight: 700, fontSize: '1.1rem', letterSpacing: '0.05em', color: '#0f172a', direction: 'ltr', textAlign: 'left' }}>{acc.account_number}</div>
+                        {acc.bank_name && <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '0.3rem' }}>🏦 {acc.bank_name}</div>}
+                        {acc.instructions && <div style={{ fontSize: '0.82rem', color: '#6b7280', marginTop: '0.5rem', fontStyle: 'italic' }}>💡 {acc.instructions}</div>}
+                      </div>
+                      <div style={{ display: 'flex', gap: '0.6rem', marginTop: '1rem' }}>
+                        <button className="action-btn success" style={{ flex: 1 }} onClick={() => { setEditingPayment(acc); setPaymentForm({ provider: acc.provider, account_name: acc.account_name, account_number: acc.account_number, bank_name: acc.bank_name || '', instructions: acc.instructions || '', is_active: acc.is_active }); setShowPaymentModal(true); }}>✏️ تعديل</button>
+                        <button className="action-btn" style={{ flex: 1, background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca' }} onClick={async () => { if (!window.confirm('هل أنت متأكد من حذف هذا الحساب؟')) return; try { await deleteVendorPaymentAccount(acc.id); setPaymentAccounts(p => p.filter(a => a.id !== acc.id)); toast.success('تم حذف الحساب'); } catch { toast.error('فشل الحذف'); } }}>🗑️ حذف</button>
+                      </div>
                     </div>
                   );
                 })}
@@ -595,6 +661,79 @@ const VendorDashboard = () => {
           </div>
         )}
       </div>
+
+      {/* Payment Account Modal */}
+      {showPaymentModal && (
+        <div className="modal-overlay" onClick={() => setShowPaymentModal(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+            <div className="modal-header">
+              <h2>{editingPayment ? 'تعديل حساب الدفع' : 'إضافة حساب دفع جديد'}</h2>
+              <button className="modal-close" onClick={() => setShowPaymentModal(false)}>✕</button>
+            </div>
+            <form className="auth-form" onSubmit={async (e) => {
+              e.preventDefault();
+              if (!paymentForm.account_name || !paymentForm.account_number) return toast.error('يرجى تعبئة اسم الحساب ورقمه');
+              setSavingPayment(true);
+              try {
+                if (editingPayment) {
+                  const res = await updateVendorPaymentAccount(editingPayment.id, paymentForm);
+                  setPaymentAccounts(p => p.map(a => a.id === editingPayment.id ? res.data : a));
+                  toast.success('تم تعديل حساب الدفع بنجاح ✅');
+                } else {
+                  const res = await createVendorPaymentAccount(paymentForm);
+                  setPaymentAccounts(p => [res.data, ...p]);
+                  toast.success('تم إضافة حساب الدفع بنجاح ✅');
+                }
+                setShowPaymentModal(false);
+                setPaymentForm(defaultPaymentForm);
+                setEditingPayment(null);
+              } catch (err) {
+                const msg = err.response?.data?.non_field_errors?.[0] || err.response?.data?.provider?.[0] || 'فشل الحفظ، تأكد من البيانات';
+                toast.error(msg);
+              }
+              setSavingPayment(false);
+            }}>
+              <div className="form-group">
+                <label>نوع خدمة الدفع *</label>
+                <select value={paymentForm.provider} onChange={e => setPaymentForm({...paymentForm, provider: e.target.value})}>
+                  <option value="floosak">📱 فلوسك</option>
+                  <option value="jawali">📲 جوالي</option>
+                  <option value="kuraimi">🏦 كريمي</option>
+                  <option value="transfer">🏛️ تحويل بنكي</option>
+                  <option value="cash">💵 استلام نقدي</option>
+                </select>
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>اسم صاحب الحساب *</label>
+                  <input type="text" placeholder="مثال: محمد أحمد" value={paymentForm.account_name} onChange={e => setPaymentForm({...paymentForm, account_name: e.target.value})} />
+                </div>
+                <div className="form-group">
+                  <label>رقم الحساب / المحفظة *</label>
+                  <input type="text" placeholder="مثال: 77XXXXXXX" value={paymentForm.account_number} onChange={e => setPaymentForm({...paymentForm, account_number: e.target.value})} dir="ltr" />
+                </div>
+              </div>
+              {paymentForm.provider === 'transfer' && (
+                <div className="form-group">
+                  <label>اسم البنك</label>
+                  <input type="text" placeholder="مثال: بنك اليمن والخليج" value={paymentForm.bank_name} onChange={e => setPaymentForm({...paymentForm, bank_name: e.target.value})} />
+                </div>
+              )}
+              <div className="form-group">
+                <label>تعليمات للعميل (اختياري)</label>
+                <textarea rows="2" placeholder="مثال: قم بإرسال المبلغ ثم أرسل رقم العملية في ملاحظات الطلب" value={paymentForm.instructions} onChange={e => setPaymentForm({...paymentForm, instructions: e.target.value})}></textarea>
+              </div>
+              <div className="form-group" style={{ flexDirection: 'row', alignItems: 'center', gap: '0.8rem' }}>
+                <input type="checkbox" id="acc-active" checked={paymentForm.is_active} onChange={e => setPaymentForm({...paymentForm, is_active: e.target.checked})} style={{ width: 'auto', margin: 0 }} />
+                <label htmlFor="acc-active" style={{ margin: 0, cursor: 'pointer' }}>تفعيل هذا الحساب وإظهاره للعملاء</label>
+              </div>
+              <button type="submit" className="btn btn-primary btn-full" disabled={savingPayment}>
+                {savingPayment ? 'جارِ الحفظ...' : '💾 حفظ الحساب'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
