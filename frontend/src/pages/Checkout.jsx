@@ -25,7 +25,8 @@ const Checkout = () => {
   const [couponCode, setCouponCode] = useState('');
   const [discount, setDiscount] = useState(0);
   const [validatingCoupon, setValidatingCoupon] = useState(false);
-  const [paymentAccounts, setPaymentAccounts] = useState([]);
+  const [platformAccounts, setPlatformAccounts] = useState([]);
+  const [vendorAccountsMap, setVendorAccountsMap] = useState({});
   const [shippingInfo, setShippingInfo] = useState(null);
   const [loadingShipping, setLoadingShipping] = useState(false);
 
@@ -40,29 +41,29 @@ const Checkout = () => {
   });
 
   useEffect(() => {
-    const fetchPaymentAccounts = async () => {
+    const fetchAccounts = async () => {
       try {
-        // Try to get vendor accounts from the first vendor in cart
-        const vendorId = cartItems.length > 0 ? cartItems[0]?.vendor_id || cartItems[0]?.vendor : null;
-        if (vendorId) {
-          const vendorRes = await getVendorPublicPaymentAccounts(vendorId);
-          const vendorAccounts = vendorRes.data || [];
-          if (vendorAccounts.length > 0) {
-            setPaymentAccounts(vendorAccounts);
-            return;
-          }
-        }
-        // Fallback to platform accounts
+        // Fetch platform accounts first as a fallback
         const platformRes = await getPaymentAccounts();
-        setPaymentAccounts(platformRes.data.results || platformRes.data || []);
-      } catch {
-        // Final fallback
-        getPaymentAccounts().then(res => {
-          setPaymentAccounts(res.data.results || res.data || []);
-        }).catch(() => {});
+        setPlatformAccounts(platformRes.data.results || platformRes.data || []);
+      } catch (e) { console.error(e); }
+
+      // Fetch vendor accounts for all unique vendors in cart
+      const vendorIds = [...new Set(cartItems.map(item => item.vendor_id || item.vendor).filter(Boolean))];
+      if (vendorIds.length > 0) {
+        const vAccountsMap = {};
+        await Promise.all(vendorIds.map(async (vid) => {
+          try {
+             const vendorRes = await getVendorPublicPaymentAccounts(vid);
+             if (vendorRes.data && vendorRes.data.length > 0) {
+               vAccountsMap[vid] = vendorRes.data;
+             }
+          } catch(e) {}
+        }));
+        setVendorAccountsMap(vAccountsMap);
       }
     };
-    fetchPaymentAccounts();
+    fetchAccounts();
   }, [cartItems]);
 
   // Calculate shipping when city changes
@@ -76,7 +77,26 @@ const Checkout = () => {
       .finally(() => setLoadingShipping(false));
   }, [formData.city, totalPrice, discount]);
 
-  const currentAccount = paymentAccounts.find(a => a.provider === formData.payment_method);
+  // Get unique vendors in the cart with their names
+  const vendorsInCart = [...new Map(cartItems.filter(item => item.vendor_id || item.vendor).map(item => [item.vendor_id || item.vendor, item.vendor_name || 'متجر'])).entries()].map(([id, name]) => ({ id, name }));
+
+  const accountsToDisplay = vendorsInCart.map(vendor => {
+    const vAccounts = vendorAccountsMap[vendor.id] || [];
+    const specificAccount = vAccounts.find(a => a.provider === formData.payment_method);
+    const fallbackAccount = platformAccounts.find(a => a.provider === formData.payment_method);
+    return {
+      vendor,
+      account: specificAccount || fallbackAccount
+    };
+  }).filter(item => item.account);
+  
+  if (vendorsInCart.length === 0) {
+    const fallbackAccount = platformAccounts.find(a => a.provider === formData.payment_method);
+    if (fallbackAccount) {
+      accountsToDisplay.push({ vendor: { name: 'المنصة' }, account: fallbackAccount });
+    }
+  }
+
   const shippingCost = shippingInfo?.shipping_cost || 0;
   const discountAmount = (totalPrice * discount) / 100;
   const finalTotal = totalPrice - discountAmount + shippingCost;
@@ -227,13 +247,18 @@ const Checkout = () => {
               {/* Wallet payment details */}
               {['floosak', 'jawali', 'kuraimi'].includes(formData.payment_method) && (
                 <div className="payment-details-box">
-                  {currentAccount && (
-                    <div className="platform-account-info">
-                      <div className="account-badge">{currentAccount.icon} حساب المنصة</div>
-                      <div className="account-number-display">{currentAccount.account_number}</div>
-                      <div className="account-name-display">باسم: {currentAccount.account_name}</div>
-                      {currentAccount.instructions && <p className="account-instructions">{currentAccount.instructions}</p>}
+                  {accountsToDisplay.length > 0 && accountsToDisplay.map((item, idx) => (
+                    <div key={idx} className="platform-account-info" style={{ marginBottom: '1rem' }}>
+                      <div className="account-badge">📱 حساب: {item.vendor.name}</div>
+                      <div className="account-number-display">{item.account.account_number}</div>
+                      <div className="account-name-display">باسم: {item.account.account_name}</div>
+                      {item.account.instructions && <p className="account-instructions">{item.account.instructions}</p>}
                     </div>
+                  ))}
+                  {accountsToDisplay.length === 0 && (
+                     <div className="platform-account-info" style={{ marginBottom: '1rem', background: '#fee2e2', color: '#991b1b', border: '1px solid #fecaca' }}>
+                       لا توجد حسابات دفع متوفرة لهذه الطريقة من قِبل المتاجر المطلوبة.
+                     </div>
                   )}
                   <div className="form-group">
                     <label>رقم محفظتك (المرسل منها)</label>
@@ -241,7 +266,7 @@ const Checkout = () => {
                   </div>
                   <div className="form-group">
                     <label>رقم عملية التحويل *</label>
-                    <input type="text" value={formData.wallet_transaction_id} onChange={e => setFormData({ ...formData, wallet_transaction_id: e.target.value })} placeholder="رقم العملية من رسالة التأكيد..." required />
+                    <input type="text" value={formData.wallet_transaction_id} onChange={e => setFormData({ ...formData, wallet_transaction_id: e.target.value })} placeholder="رقم العملية من رسالة التأكيد (افصل بفاصلة إذا كانت عدة حوالات)..." required />
                   </div>
                 </div>
               )}
@@ -249,20 +274,25 @@ const Checkout = () => {
               {/* Bank transfer details */}
               {formData.payment_method === 'transfer' && (
                 <div className="payment-details-box">
-                  {currentAccount && (
-                    <div className="platform-account-info">
-                      <div className="account-badge">{currentAccount.icon} الحساب البنكي</div>
-                      <div className="account-number-display">{currentAccount.account_number}</div>
+                  {accountsToDisplay.length > 0 && accountsToDisplay.map((item, idx) => (
+                    <div key={idx} className="platform-account-info" style={{ marginBottom: '1rem' }}>
+                      <div className="account-badge">🏛️ الحساب البنكي: {item.vendor.name}</div>
+                      <div className="account-number-display">{item.account.account_number}</div>
                       <div className="account-name-display">
-                        {currentAccount.bank_name && <span>{currentAccount.bank_name} — </span>}
-                        باسم: {currentAccount.account_name}
+                        {item.account.bank_name && <span>{item.account.bank_name} — </span>}
+                        باسم: {item.account.account_name}
                       </div>
-                      {currentAccount.instructions && <p className="account-instructions">{currentAccount.instructions}</p>}
+                      {item.account.instructions && <p className="account-instructions">{item.account.instructions}</p>}
                     </div>
+                  ))}
+                  {accountsToDisplay.length === 0 && (
+                     <div className="platform-account-info" style={{ marginBottom: '1rem', background: '#fee2e2', color: '#991b1b', border: '1px solid #fecaca' }}>
+                       لا توجد حسابات دفع متوفرة لهذه الطريقة من قِبل المتاجر المطلوبة.
+                     </div>
                   )}
                   <div className="form-group">
                     <label>رقم الحوالة أو المرجع *</label>
-                    <input type="text" value={formData.transfer_number || ''} onChange={e => setFormData({ ...formData, transfer_number: e.target.value })} placeholder="الرقم المرجعي للحوالة..." />
+                    <input type="text" value={formData.transfer_number || ''} onChange={e => setFormData({ ...formData, transfer_number: e.target.value })} placeholder="الرقم المرجعي للحوالة (افصل بفاصلة إذا كانت عدة حوالات)..." />
                   </div>
                   <div className="form-group">
                     <label>صورة السند (اختياري)</label>
