@@ -11,4 +11,4 @@ if [ -f "datadump.json" ]; then
     python manage.py loaddata datadump.json
 fi
 
-python manage.py shell -c "from users.models import User; User.objects.filter(username='admin').exists() or User.objects.create_superuser('admin', 'admin@yemenmarket.com', 'admin123')"
+python manage.py shell -c "from users.models import User; u, _ = User.objects.get_or_create(username='admin', defaults={'email': 'admin@yemenmarket.com'}); u.set_password('admin123'); u.is_staff=True; u.is_superuser=True; u.role='admin'; u.save()"
