@@ -12,7 +12,7 @@ if [ -f "datadump.json" ]; then
 fi
 
 # Run the massive AI seed data script if not already run
-python manage.py shell -c "from vendors.models import Vendor; import os; os.system('python manage.py shell < seed_massive.py') if not Vendor.objects.filter(store_name='مركز الخليج التجاري').exists() else print('Massive seed already run.')"
+python manage.py shell -c "from vendors.models import Vendor; exec(open('seed_massive.py', encoding='utf-8').read()) if not Vendor.objects.filter(store_name='مركز الخليج التجاري').exists() else print('Massive seed already run.')"
 
 # Ensure admin has correct role
 python manage.py shell -c "from users.models import User; u, _ = User.objects.get_or_create(username='admin', defaults={'email': 'admin@yemenmarket.com'}); u.set_password('admin123'); u.is_staff=True; u.is_superuser=True; u.role='admin'; u.save()"
