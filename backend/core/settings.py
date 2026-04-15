@@ -114,16 +114,19 @@ AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
 AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME')
 AWS_S3_ENDPOINT_URL = os.environ.get('AWS_S3_ENDPOINT_URL')
 
-# الإعدادات الافتراضية للمسارات المحلية (كاحتياط)
+# الإعدادات الافتراضية للمسارات المحلية
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 if AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY:
-    # إعدادات S3
+    # إعدادات S3 - يتم تفعيلها فقط عند وجود المفاتيح (في Render)
     AWS_S3_FILE_OVERWRITE = False
     AWS_S3_SIGNATURE_VERSION = 's3v4'
-    AWS_QUERYSTRING_AUTH = False  # لجعل الروابط مباشرة ودائمة
+    AWS_QUERYSTRING_AUTH = False  
     AWS_DEFAULT_ACL = None
+    
+    # القيمة التي أضفتها أنت: توضع هنا لتعمل فقط مع S3
+    AWS_S3_CUSTOM_DOMAIN = 'qfxshslsftrgvvoaqvsg.supabase.co/storage/v1/object/public/yemenmarket-media'
 
     STORAGES = {
         "default": {
@@ -134,7 +137,7 @@ if AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY:
         },
     }
 else:
-    # التخزين المحلي في حالة عدم وجود مفاتيح (للتطوير المحلي)
+    # التخزين المحلي (عند العمل على جهازك الشخصي)
     STORAGES = {
         "default": {
             "BACKEND": "django.core.files.storage.FileSystemStorage",
