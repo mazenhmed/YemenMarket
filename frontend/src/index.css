@@ -3599,7 +3599,11 @@ button {
   .product-name {
     font-size: 0.85rem;
     margin-bottom: 0.5rem;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
   }
 
   .product-meta {
