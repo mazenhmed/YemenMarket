@@ -40,7 +40,7 @@ DEFAULT_PAYMENT_ACCOUNTS = [
     {
         'provider': 'floosak',
         'account_name': 'YemenMarket',
-        'account_number': '770000001',
+        'account_number': '777161670',
         'instructions': 'قم بتحويل المبلغ إلى رقم فلوسك أعلاه ثم أدخل رقم عملية التحويل',
         'icon': '📱',
         'display_order': 1,
@@ -48,7 +48,7 @@ DEFAULT_PAYMENT_ACCOUNTS = [
     {
         'provider': 'jawali',
         'account_name': 'YemenMarket',
-        'account_number': '770000002',
+        'account_number': '777161670',
         'instructions': 'قم بتحويل المبلغ إلى رقم جوالي أعلاه ثم أدخل رقم عملية التحويل',
         'icon': '📲',
         'display_order': 2,
