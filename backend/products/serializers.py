@@ -24,7 +24,7 @@ class CategorySerializer(serializers.ModelSerializer):
 
 
 class ProductSerializer(serializers.ModelSerializer):
-    category_name = serializers.ReadOnlyField(source='category.name_ar')
+    category_name = serializers.SerializerMethodField()
     vendor_name = serializers.ReadOnlyField(source='vendor.store_name')
     vendor_id = serializers.ReadOnlyField(source='vendor.id')
     discount_percentage = serializers.ReadOnlyField()
@@ -36,6 +36,11 @@ class ProductSerializer(serializers.ModelSerializer):
         model = Product
         fields = '__all__'
         read_only_fields = ('sold_count', 'rating', 'rating_count', 'status')
+
+    def get_category_name(self, obj):
+        if obj.category:
+            return obj.category.name_ar or obj.category.name
+        return None
 
 
 class ProductCreateSerializer(serializers.ModelSerializer):

@@ -114,7 +114,7 @@ const Home = () => {
           </div>
           <div className="categories-grid">
             {categories.map((cat, i) => (
-              <Link to={`/products`} key={cat.id || i} className="category-card">
+              <Link to={`/products?category=${cat.name_ar || cat.name}`} key={cat.id || i} className="category-card">
                 <div className="category-icon">{cat.icon || getIcon(cat.name_ar || cat.name || '')}</div>
                 <div className="category-name">{cat.name_ar || cat.name}</div>
                 <div className="category-count">{cat.product_count || 0} منتج</div>

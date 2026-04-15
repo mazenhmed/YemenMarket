@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useToast } from '../context/ToastContext';
 import { getProducts, getCategories } from '../services/api';
@@ -17,24 +17,47 @@ const FALLBACK_PRODUCTS = [
 const Products = () => {
   const { addToCart } = useCart();
   const toast = useToast();
-  const [activeCategory, setActiveCategory] = useState('الكل');
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const initialCat = searchParams.get('category') || 'الكل';
+  const [activeCategory, setActiveCategory] = useState(initialCat);
   const [searchQuery, setSearchQuery] = useState('');
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    setActiveCategory(searchParams.get('category') || 'الكل');
+  }, [location.search]);
+
+  useEffect(() => {
     const fetchData = async () => {
       try {
-        const [prodRes, catRes] = await Promise.all([
-          getProducts({ page_size: 50 }),
-          getCategories()
-        ]);
-        const prodData = prodRes.data.results || prodRes.data;
-        setProducts(Array.isArray(prodData) ? prodData : []);
+        // Fetch categories first
+        const catRes = await getCategories();
         const catData = catRes.data.results || catRes.data;
         setCategories(Array.isArray(catData) ? catData : []);
-      } catch {
+
+        // Fetch all products across all pages
+        let allProds = [];
+        let page = 1;
+        let hasNext = true;
+        
+        while (hasNext && page <= 10) { // Safety limit 10 pages
+          const res = await getProducts({ page: page, page_size: 100 });
+          const items = res.data.results || res.data;
+          allProds = [...allProds, ...(Array.isArray(items) ? items : [])];
+          
+          if (res.data.next) {
+            page++;
+          } else {
+            hasNext = false;
+          }
+        }
+        setProducts(allProds);
+
+      } catch (err) {
+        console.error("Error fetching data:", err);
         setProducts(FALLBACK_PRODUCTS);
       }
       setLoading(false);
@@ -45,8 +68,9 @@ const Products = () => {
   const categoryNames = ['الكل', ...categories.map(c => c.name_ar || c.name)];
 
   const filtered = products.filter(p => {
-    const catName = p.category_name || '';
-    const matchCategory = activeCategory === 'الكل' || catName === activeCategory;
+    const catName = (p.category_name || '').trim();
+    const active = activeCategory.trim();
+    const matchCategory = active === 'الكل' || catName === active;
     const matchSearch = !searchQuery || 
       p.name.includes(searchQuery) || 
       (p.vendor_name || '').includes(searchQuery);
