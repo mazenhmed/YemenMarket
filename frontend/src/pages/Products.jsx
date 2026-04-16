@@ -94,7 +94,10 @@ const Products = () => {
       id: product.id,
       name: product.name,
       price: Number(product.price),
+      vendor_id: product.vendor_id || product.vendor,
+      vendor_name: product.vendor_name || 'متجر',
       vendor: product.vendor_name || 'متجر',
+      image: product.image || null,
       icon: getIcon(product),
     });
     toast.success('تمت الإضافة للسلة ✅');

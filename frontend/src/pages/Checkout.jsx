@@ -42,23 +42,30 @@ const Checkout = () => {
 
   useEffect(() => {
     const fetchAccounts = async () => {
+      // Fetch platform fallback accounts
       try {
-        // Fetch platform accounts first as a fallback
         const platformRes = await getPaymentAccounts();
         setPlatformAccounts(platformRes.data.results || platformRes.data || []);
-      } catch (e) { console.error(e); }
+      } catch (e) { console.error('Platform accounts error:', e); }
 
-      // Fetch vendor accounts for all unique vendors in cart
-      const vendorIds = [...new Set(cartItems.map(item => item.vendor_id || item.vendor).filter(Boolean))];
+      // Collect unique numeric vendor IDs only (skip string names)
+      const vendorIds = [...new Set(
+        cartItems
+          .map(item => item.vendor_id)
+          .filter(id => id && typeof id === 'number')
+      )];
+
       if (vendorIds.length > 0) {
         const vAccountsMap = {};
         await Promise.all(vendorIds.map(async (vid) => {
           try {
-             const vendorRes = await getVendorPublicPaymentAccounts(vid);
-             if (vendorRes.data && vendorRes.data.length > 0) {
-               vAccountsMap[vid] = vendorRes.data;
-             }
-          } catch(e) {}
+            const vendorRes = await getVendorPublicPaymentAccounts(vid);
+            if (vendorRes.data && vendorRes.data.length > 0) {
+              vAccountsMap[vid] = vendorRes.data;
+            }
+          } catch (e) {
+            console.warn(`No payment accounts for vendor ${vid}:`, e);
+          }
         }));
         setVendorAccountsMap(vAccountsMap);
       }
@@ -77,20 +84,29 @@ const Checkout = () => {
       .finally(() => setLoadingShipping(false));
   }, [formData.city, totalPrice, discount]);
 
-  // Get unique vendors in the cart with their names
-  const vendorsInCart = [...new Map(cartItems.filter(item => item.vendor_id || item.vendor).map(item => [item.vendor_id || item.vendor, item.vendor_name || 'متجر'])).entries()].map(([id, name]) => ({ id, name }));
+  // Build unique vendors list from cart items (only those with numeric vendor_id)
+  const vendorsInCart = [...new Map(
+    cartItems
+      .filter(item => item.vendor_id && typeof item.vendor_id === 'number')
+      .map(item => [
+        item.vendor_id,
+        item.vendor_name || item.vendor || 'متجر'
+      ])
+  ).entries()].map(([id, name]) => ({ id, name }));
 
-  const accountsToDisplay = vendorsInCart.map(vendor => {
-    const vAccounts = vendorAccountsMap[vendor.id] || [];
-    const specificAccount = vAccounts.find(a => a.provider === formData.payment_method);
-    const fallbackAccount = platformAccounts.find(a => a.provider === formData.payment_method);
-    return {
-      vendor,
-      account: specificAccount || fallbackAccount
-    };
-  }).filter(item => item.account);
-  
-  if (vendorsInCart.length === 0) {
+  // For each vendor in cart, find matching payment account for selected method
+  const accountsToDisplay = vendorsInCart
+    .map(vendor => {
+      const vAccounts = vendorAccountsMap[vendor.id] || [];
+      const specificAccount = vAccounts.find(a => a.provider === formData.payment_method);
+      const fallbackAccount = platformAccounts.find(a => a.provider === formData.payment_method);
+      const account = specificAccount || fallbackAccount;
+      return account ? { vendor, account } : null;
+    })
+    .filter(Boolean);
+
+  // If no vendor-specific accounts, show platform account as fallback
+  if (accountsToDisplay.length === 0) {
     const fallbackAccount = platformAccounts.find(a => a.provider === formData.payment_method);
     if (fallbackAccount) {
       accountsToDisplay.push({ vendor: { name: 'المنصة' }, account: fallbackAccount });
@@ -256,9 +272,9 @@ const Checkout = () => {
                     </div>
                   ))}
                   {accountsToDisplay.length === 0 && (
-                     <div className="platform-account-info" style={{ marginBottom: '1rem', background: '#fee2e2', color: '#991b1b', border: '1px solid #fecaca' }}>
-                       لا توجد حسابات دفع متوفرة لهذه الطريقة من قِبل المتاجر المطلوبة.
-                     </div>
+                    <div className="platform-account-info" style={{ marginBottom: '1rem', background: '#fee2e2', color: '#991b1b', border: '1px solid #fecaca' }}>
+                      لا توجد حسابات دفع متوفرة لهذه الطريقة من قِبل المتاجر المطلوبة.
+                    </div>
                   )}
                   <div className="form-group">
                     <label>رقم محفظتك (المرسل منها)</label>
@@ -286,9 +302,9 @@ const Checkout = () => {
                     </div>
                   ))}
                   {accountsToDisplay.length === 0 && (
-                     <div className="platform-account-info" style={{ marginBottom: '1rem', background: '#fee2e2', color: '#991b1b', border: '1px solid #fecaca' }}>
-                       لا توجد حسابات دفع متوفرة لهذه الطريقة من قِبل المتاجر المطلوبة.
-                     </div>
+                    <div className="platform-account-info" style={{ marginBottom: '1rem', background: '#fee2e2', color: '#991b1b', border: '1px solid #fecaca' }}>
+                      لا توجد حسابات دفع متوفرة لهذه الطريقة من قِبل المتاجر المطلوبة.
+                    </div>
                   )}
                   <div className="form-group">
                     <label>رقم الحوالة أو المرجع *</label>
@@ -354,7 +370,7 @@ const Checkout = () => {
             ))}
             <div className="summary-divider"></div>
             <div className="summary-row"><span>المجموع الفرعي</span><span>{totalPrice.toLocaleString()} ريال</span></div>
-            
+
             {/* Shipping */}
             <div className="summary-row">
               <span>الشحن {shippingInfo?.estimated_days ? `(${shippingInfo.estimated_days} أيام)` : ''}</span>
@@ -379,10 +395,10 @@ const Checkout = () => {
               </div>
             )}
             <div className="summary-divider"></div>
-            
+
             {/* Coupon */}
             <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
-              <input type="text" placeholder="لديك كود خصم؟" value={couponCode} onChange={e => setCouponCode(e.target.value)} disabled={discount > 0} 
+              <input type="text" placeholder="لديك كود خصم؟" value={couponCode} onChange={e => setCouponCode(e.target.value)} disabled={discount > 0}
                 style={{ flex: 1, padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '4px' }} />
               <button type="button" className="btn btn-outline" onClick={handleApplyCoupon} disabled={validatingCoupon || discount > 0} style={{ padding: '0.5rem' }}>
                 {validatingCoupon ? 'جارِ...' : discount > 0 ? 'مفعل ✅' : 'تطبيق'}
@@ -390,7 +406,7 @@ const Checkout = () => {
             </div>
 
             <div className="summary-row total"><span>الإجمالي النهائي</span><span>{finalTotal.toLocaleString()} ريال</span></div>
-            
+
             {/* Payment methods icons */}
             <div className="checkout-payment-icons">
               {PAYMENT_METHODS.map(m => (

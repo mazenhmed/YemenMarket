@@ -65,7 +65,16 @@ const Home = () => {
   };
 
   const handleAddToCart = (p) => {
-    addToCart({ id: p.id, name: p.name, price: Number(p.price), vendor: p.vendor_name || 'متجر', icon: getIcon(p.category_name || '') });
+    addToCart({
+      id: p.id,
+      name: p.name,
+      price: Number(p.price),
+      vendor_id: p.vendor_id || p.vendor,
+      vendor_name: p.vendor_name || 'متجر',
+      vendor: p.vendor_name || 'متجر',
+      image: p.image || null,
+      icon: getIcon(p.category_name || ''),
+    });
     toast.success('تمت الإضافة للسلة ✅');
   };
 

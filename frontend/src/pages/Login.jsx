@@ -1,22 +1,19 @@
 import React, { useState } from 'react';
-import { useAuth } from '../context/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { phoneLogin } from '../services/api';
 
 const Login = () => {
-  const [formData, setFormData] = useState({ username: '', password: '' });
+  const [identifier, setIdentifier] = useState(''); // phone OR username
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [useUsername, setUseUsername] = useState(false); // toggle classic login
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { login, demoLogin } = useAuth();
+  const { demoLogin } = useAuth();
   const navigate = useNavigate();
   const toast = useToast();
-
-  // Demo accounts for testing
-  const demoAccounts = [
-    { username: 'admin', password: 'admin123', role: 'admin', email: 'admin@yemenmarket.com' },
-    { username: 'vendor', password: 'vendor123', role: 'vendor', email: 'vendor@store.com' },
-    { username: 'customer', password: 'customer123', role: 'customer', email: 'customer@email.com' },
-  ];
 
   const navigateByRole = (role) => {
     if (role === 'admin') navigate('/admin');
@@ -26,40 +23,56 @@ const Login = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.username || !formData.password) {
-      setError('يرجى إدخال اسم المستخدم وكلمة المرور');
+    setError('');
+
+    if (!identifier.trim()) {
+      setError(useUsername ? 'يرجى إدخال اسم المستخدم' : 'يرجى إدخال رقم الجوال');
+      return;
+    }
+    if (!password) {
+      setError('يرجى إدخال كلمة المرور');
+      return;
+    }
+    if (!useUsername && identifier.replace(/\D/g, '').length < 9) {
+      setError('يرجى إدخال رقم جوال يمني صحيح (9 أرقام)');
       return;
     }
 
     setIsLoading(true);
-    setError('');
-
-    // Try real API first
-    const result = await login(formData);
-    
-    if (result.success) {
-      toast.success('تم تسجيل الدخول بنجاح!');
-      navigateByRole(result.user.role);
-    } else {
-      // Fallback to demo accounts when backend is not running
-      const account = demoAccounts.find(a => a.username === formData.username && a.password === formData.password);
-      if (account) {
-        demoLogin(
-          { id: 1, username: account.username, email: account.email, role: account.role },
-          { access: 'demo-token', refresh: 'demo-refresh' }
-        );
-        toast.info('تم الدخول بوضع العرض التجريبي');
-        navigateByRole(account.role);
+    try {
+      // Both phone and username go through the same endpoint
+      const res = await phoneLogin(identifier.trim(), password);
+      const { access, refresh, user } = res.data;
+      localStorage.setItem('access_token', access);
+      localStorage.setItem('refresh_token', refresh);
+      localStorage.setItem('user', JSON.stringify(user));
+      toast.success(`مرحباً بك! 👋`);
+      navigateByRole(user.role);
+    } catch (err) {
+      const msg = err.response?.data?.error;
+      if (msg) {
+        setError(msg);
       } else {
-        setError(result.error || 'اسم المستخدم أو كلمة المرور غير صحيحة');
+        // Demo fallback
+        const demos = [
+          { id: 'admin', password: 'admin123', role: 'admin' },
+          { id: 'vendor', password: 'vendor123', role: 'vendor' },
+          { id: 'customer', password: 'customer123', role: 'customer' },
+        ];
+        const demo = demos.find(d => d.id === identifier.trim() && d.password === password);
+        if (demo) {
+          demoLogin(
+            { id: 1, username: demo.id, email: '', role: demo.role, phone: '' },
+            { access: 'demo-token', refresh: 'demo-refresh' }
+          );
+          toast.info('تم الدخول بوضع العرض التجريبي');
+          navigateByRole(demo.role);
+        } else {
+          setError('بيانات الدخول غير صحيحة');
+        }
       }
     }
     setIsLoading(false);
-  };
-
-  const fillDemoAccount = (account) => {
-    setFormData({ username: account.username, password: account.password });
-    setError('');
   };
 
   return (
@@ -71,37 +84,103 @@ const Login = () => {
               <div className="logo-icon">Y</div>
               <div className="logo-text">Yemen<span>Market</span></div>
             </div>
-            <h1>مرحباً بعودتك!</h1>
-            <p>قم بتسجيل الدخول للوصول إلى حسابك</p>
+            <h1>مرحباً بعودتك! 👋</h1>
+            <p>{useUsername ? 'سجّل دخولك باسم المستخدم' : 'سجّل دخولك برقم جوالك'}</p>
           </div>
 
           {error && <div className="auth-error">{error}</div>}
 
           <form onSubmit={handleSubmit} className="auth-form">
-            <div className="form-group">
-              <label>اسم المستخدم</label>
-              <input
-                type="text"
-                placeholder="أدخل اسم المستخدم"
-                value={formData.username}
-                onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-              />
-            </div>
+
+            {/* Phone field */}
+            {!useUsername && (
+              <div className="form-group">
+                <label>رقم الجوال</label>
+                <div style={{ position: 'relative' }}>
+                  <span style={{
+                    position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)',
+                    color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.9rem', pointerEvents: 'none'
+                  }}>🇾🇪 +967</span>
+                  <input
+                    type="tel"
+                    placeholder="771234567"
+                    value={identifier}
+                    onChange={e => setIdentifier(e.target.value.replace(/\D/g, '').slice(0, 9))}
+                    style={{ paddingLeft: '5.5rem', direction: 'ltr', letterSpacing: '0.08em', fontSize: '1.05rem' }}
+                    dir="ltr"
+                    maxLength={9}
+                    autoComplete="tel"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Username field (classic login) */}
+            {useUsername && (
+              <div className="form-group">
+                <label>اسم المستخدم</label>
+                <input
+                  type="text"
+                  placeholder="أدخل اسم المستخدم"
+                  value={identifier}
+                  onChange={e => setIdentifier(e.target.value)}
+                  autoComplete="username"
+                />
+              </div>
+            )}
+
+            {/* Password field */}
             <div className="form-group">
               <label>كلمة المرور</label>
-              <input
-                type="password"
-                placeholder="أدخل كلمة المرور"
-                value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              />
+              <div style={{ position: 'relative' }}>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="أدخل كلمة المرور"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  style={{ paddingLeft: '3rem' }}
+                  autoComplete="current-password"
+                />
+                <button type="button" onClick={() => setShowPassword(p => !p)}
+                  style={{ position: 'absolute', left: '0.8rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem', padding: 0 }}>
+                  {showPassword ? '🙈' : '👁️'}
+                </button>
+              </div>
             </div>
-            <button type="submit" className="btn btn-primary btn-full" disabled={isLoading}>
-              {isLoading ? 'جارِ الدخول...' : 'تسجيل الدخول'}
+
+            <button type="submit" className="btn btn-primary btn-full" disabled={isLoading}
+              style={{ marginTop: '0.5rem' }}>
+              {isLoading
+                ? <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                    <span style={{ width: '18px', height: '18px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.8s linear infinite' }} />
+                    جارِ التحقق...
+                  </span>
+                : '🔐 تسجيل الدخول'}
             </button>
           </form>
 
-          
+          {/* Toggle login method */}
+          <div style={{ textAlign: 'center', marginTop: '1rem', padding: '0.8rem', background: 'var(--glass-bg)', borderRadius: '10px', border: '1px solid var(--glass-border)' }}>
+            {!useUsername ? (
+              <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                مشترك قديم؟{' '}
+                <button type="button"
+                  onClick={() => { setUseUsername(true); setIdentifier(''); setError(''); }}
+                  style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600, textDecoration: 'underline', fontSize: '0.85rem' }}>
+                  دخول باسم المستخدم
+                </button>
+              </span>
+            ) : (
+              <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                <button type="button"
+                  onClick={() => { setUseUsername(false); setIdentifier(''); setError(''); }}
+                  style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600, textDecoration: 'underline', fontSize: '0.85rem' }}>
+                  ← دخول برقم الجوال
+                </button>
+              </span>
+            )}
+          </div>
+
           <div className="auth-footer">
             <p>ليس لديك حساب؟ <Link to="/register">إنشاء حساب جديد</Link></p>
           </div>

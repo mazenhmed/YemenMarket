@@ -49,6 +49,9 @@ export const loginUser = (data) => API.post('/users/login/', data);
 export const registerUser = (data) => API.post('/users/register/', data);
 export const getMe = () => API.get('/users/me/');
 export const updateProfile = (data) => API.patch('/users/me/', data);
+export const firebaseLogin = (idToken) => API.post('/users/firebase-auth/', { id_token: idToken });
+export const phoneLogin = (phone, password) => API.post('/users/phone-login/', { phone, password });
+export const phoneRegister = (data) => API.post('/users/phone-register/', data);
 
 // ========== Products ==========
 export const getProducts = (params) => API.get('/products/items/', { params });

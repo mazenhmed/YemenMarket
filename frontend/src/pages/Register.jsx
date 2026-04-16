@@ -1,60 +1,133 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { sendPhoneOTP, verifyPhoneOTP } from '../services/firebase';
+import { phoneRegister } from '../services/api';
+
+const STEPS = { INFO: 'info', OTP: 'otp', DONE: 'done' };
 
 const Register = () => {
-  const [formData, setFormData] = useState({
-    username: '', email: '', password: '', confirmPassword: '', role: 'customer'
-  });
+  const [step, setStep] = useState(STEPS.INFO);
+  const [formData, setFormData] = useState({ name: '', phone: '', password: '', confirmPassword: '', role: 'customer' });
+  const [showPass, setShowPass] = useState(false);
   const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const { register, demoLogin } = useAuth();
+  const [otp, setOtp] = useState(['', '', '', '', '', '']);
+  const [firebaseIdToken, setFirebaseIdToken] = useState('');
+  const [sendingOtp, setSendingOtp] = useState(false);
+  const [verifyingOtp, setVerifyingOtp] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [countdown, setCountdown] = useState(0);
+  const otpRefs = useRef([]);
   const navigate = useNavigate();
   const toast = useToast();
 
-  const handleSubmit = async (e) => {
+  // Countdown timer
+  useEffect(() => {
+    if (countdown <= 0) return;
+    const t = setTimeout(() => setCountdown(c => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [countdown]);
+
+  const saveAndRedirect = (data) => {
+    const { access, refresh, user } = data;
+    localStorage.setItem('access_token', access);
+    localStorage.setItem('refresh_token', refresh);
+    localStorage.setItem('user', JSON.stringify(user));
+    if (user.role === 'vendor') navigate('/vendor/dashboard');
+    else navigate('/');
+  };
+
+  // ── Step 1: Validate info and send OTP ──────────────────────
+  const handleInfoSubmit = async (e) => {
     e.preventDefault();
-    if (formData.password !== formData.confirmPassword) {
-      setError('كلمة المرور غير متطابقة');
-      return;
-    }
-    if (!formData.username || !formData.email || !formData.password) {
-      setError('يرجى ملء جميع الحقول');
-      return;
-    }
-    if (formData.password.length < 6) {
-      setError('كلمة المرور يجب أن تكون 6 أحرف على الأقل');
-      return;
-    }
-
-    setIsLoading(true);
     setError('');
+    const { name, phone, password, confirmPassword } = formData;
+    const cleaned = phone.replace(/\D/g, '');
 
-    const result = await register({
-      username: formData.username,
-      email: formData.email,
-      password: formData.password,
-      role: formData.role,
-    });
+    if (!name.trim()) { setError('يرجى إدخال الاسم'); return; }
+    if (cleaned.length < 9) { setError('يرجى إدخال رقم جوال يمني صحيح (9 أرقام)'); return; }
+    if (password.length < 6) { setError('كلمة المرور يجب أن تكون 6 أحرف على الأقل'); return; }
+    if (password !== confirmPassword) { setError('كلمة المرور وتأكيدها غير متطابقتين'); return; }
 
-    if (result.success) {
-      toast.success('تم إنشاء الحساب بنجاح!');
-      navigate('/');
-    } else {
-      // Fallback demo mode
-      if (result.error.includes('فشل')) {
-        demoLogin(
-          { username: formData.username, email: formData.email, role: formData.role },
-          { access: 'demo-token', refresh: 'demo-refresh' }
-        );
-        toast.info('تم إنشاء الحساب في وضع العرض');
-        navigate('/');
-      } else {
-        setError(result.error);
+    setSendingOtp(true);
+    try {
+      await sendPhoneOTP(cleaned);
+      setStep(STEPS.OTP);
+      setCountdown(120);
+      toast.success('تم إرسال رمز التحقق إلى: +967' + cleaned);
+      setTimeout(() => otpRefs.current[0]?.focus(), 300);
+    } catch (err) {
+      console.error('OTP send error:', err.code, err.message);
+      const msgs = {
+        'auth/too-many-requests':      'طلبات كثيرة جداً، انتظر قليلاً وأعد المحاولة',
+        'auth/quota-exceeded':         'تم تجاوز الحد اليومي لرسائل SMS',
+        'auth/captcha-check-failed':   'فشل التحقق، أعد تحميل الصفحة',
+        'auth/invalid-phone-number':   'رقم الهاتف غير صالح',
+        'auth/network-request-failed': 'تحقق من اتصالك بالإنترنت',
+      };
+      setError(msgs[err.code] || `خطأ: ${err.message}`);
+    }
+    setSendingOtp(false);
+  };
+
+  // ── Step 2: Handle OTP input ─────────────────────────────────
+  const handleOtpChange = (idx, val) => {
+    const v = val.replace(/\D/g, '').slice(-1);
+    const next = [...otp]; next[idx] = v;
+    setOtp(next);
+    if (v && idx < 5) otpRefs.current[idx + 1]?.focus();
+    if (!v && idx > 0) otpRefs.current[idx - 1]?.focus();
+    if (next.every(d => d) && next.join('').length === 6) handleVerifyOtp(next.join(''));
+  };
+
+  const handleOtpPaste = (e) => {
+    const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+    if (pasted.length === 6) { setOtp(pasted.split('')); handleVerifyOtp(pasted); }
+  };
+
+  // ── Step 2: Verify OTP → get Firebase token ──────────────────
+  const handleVerifyOtp = async (code) => {
+    setError('');
+    setVerifyingOtp(true);
+    try {
+      const idToken = await verifyPhoneOTP(code);
+      setFirebaseIdToken(idToken);
+      // Auto-submit registration
+      await handleRegister(idToken);
+    } catch (err) {
+      console.error('OTP verify error:', err.code, err.message);
+      setOtp(['', '', '', '', '', '']);
+      otpRefs.current[0]?.focus();
+      setError(
+        err.code === 'auth/invalid-verification-code' ? 'رمز التحقق غير صحيح' :
+        err.code === 'auth/code-expired' ? 'انتهت صلاحية الرمز — أرسل رمزاً جديداً' :
+        err.response?.data?.error || 'فشل التحقق'
+      );
+    }
+    setVerifyingOtp(false);
+  };
+
+  // ── Step 3: Register account ─────────────────────────────────
+  const handleRegister = async (idToken) => {
+    setSubmitting(true);
+    try {
+      const res = await phoneRegister({
+        name: formData.name,
+        phone: formData.phone.replace(/\D/g, ''),
+        password: formData.password,
+        role: formData.role,
+        firebase_id_token: idToken,
+      });
+      toast.success('تم إنشاء حسابك بنجاح! 🎉');
+      saveAndRedirect(res.data);
+    } catch (err) {
+      const msg = err.response?.data?.error || 'فشل إنشاء الحساب';
+      setError(msg);
+      if (msg.includes('مسجّل مسبقاً')) {
+        setTimeout(() => setStep(STEPS.INFO), 2000);
       }
     }
-    setIsLoading(false);
+    setSubmitting(false);
   };
 
   return (
@@ -70,43 +143,148 @@ const Register = () => {
             <p>انضم إلينا وابدأ تجربة تسوق مميزة</p>
           </div>
 
-          {error && <div className="auth-error">{error}</div>}
-
-          {/* Role Selector */}
-          <div className="role-selector">
-            <button type="button" className={`role-btn ${formData.role === 'customer' ? 'active' : ''}`}
-              onClick={() => setFormData({ ...formData, role: 'customer' })}>🛒 عميل</button>
-            <button type="button" className={`role-btn ${formData.role === 'vendor' ? 'active' : ''}`}
-              onClick={() => setFormData({ ...formData, role: 'vendor' })}>🏪 بائع</button>
+          {/* Progress Steps */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', marginBottom: '1.5rem' }}>
+            {[{ label: 'بياناتك', icon: '📝' }, { label: 'التحقق', icon: '📱' }].map((s, i) => (
+              <React.Fragment key={i}>
+                <div style={{
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.3rem',
+                  opacity: i === 0 ? (step === STEPS.INFO ? 1 : 0.5) : (step === STEPS.OTP ? 1 : 0.4)
+                }}>
+                  <div style={{
+                    width: '36px', height: '36px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: (i === 0 && step === STEPS.INFO) || (i === 1 && step === STEPS.OTP) ? 'var(--primary)' : 'var(--glass-border)',
+                    color: 'white', fontSize: '1rem', transition: 'all 0.3s'
+                  }}>{s.icon}</div>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{s.label}</span>
+                </div>
+                {i < 1 && <div style={{ flex: 1, height: '2px', background: 'var(--glass-border)', maxWidth: '60px' }} />}
+              </React.Fragment>
+            ))}
           </div>
 
-          <form onSubmit={handleSubmit} className="auth-form">
-            <div className="form-group">
-              <label>اسم المستخدم</label>
-              <input type="text" placeholder="أدخل اسم المستخدم" value={formData.username}
-                onChange={(e) => setFormData({ ...formData, username: e.target.value })} />
-            </div>
-            <div className="form-group">
-              <label>البريد الإلكتروني</label>
-              <input type="email" placeholder="example@email.com" value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })} />
-            </div>
-            <div className="form-row">
-              <div className="form-group">
-                <label>كلمة المرور</label>
-                <input type="password" placeholder="أدخل كلمة المرور" value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })} />
+          {error && <div className="auth-error">{error}</div>}
+
+          {/* ── Step 1: Info Form ── */}
+          {step === STEPS.INFO && (
+            <>
+              {/* Role Selector */}
+              <div className="role-selector" style={{ marginBottom: '1rem' }}>
+                <button type="button" className={`role-btn ${formData.role === 'customer' ? 'active' : ''}`}
+                  onClick={() => setFormData({ ...formData, role: 'customer' })}>🛒 عميل</button>
+                <button type="button" className={`role-btn ${formData.role === 'vendor' ? 'active' : ''}`}
+                  onClick={() => setFormData({ ...formData, role: 'vendor' })}>🏪 بائع</button>
               </div>
-              <div className="form-group">
-                <label>تأكيد كلمة المرور</label>
-                <input type="password" placeholder="أعد كلمة المرور" value={formData.confirmPassword}
-                  onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })} />
+
+              <form onSubmit={handleInfoSubmit} className="auth-form">
+                <div className="form-group">
+                  <label>الاسم الكامل</label>
+                  <input type="text" placeholder="أدخل اسمك الكامل" value={formData.name}
+                    onChange={e => setFormData({ ...formData, name: e.target.value })} required />
+                </div>
+
+                <div className="form-group">
+                  <label>رقم الجوال</label>
+                  <div style={{ position: 'relative' }}>
+                    <span style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.9rem', pointerEvents: 'none' }}>
+                      🇾🇪 +967
+                    </span>
+                    <input type="tel" placeholder="771234567"
+                      value={formData.phone}
+                      onChange={e => setFormData({ ...formData, phone: e.target.value.replace(/\D/g, '').slice(0, 9) })}
+                      style={{ paddingLeft: '5.5rem', direction: 'ltr', letterSpacing: '0.08em', fontSize: '1.05rem' }}
+                      dir="ltr" maxLength={9} required />
+                  </div>
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>كلمة المرور</label>
+                    <div style={{ position: 'relative' }}>
+                      <input type={showPass ? 'text' : 'password'} placeholder="6 أحرف على الأقل"
+                        value={formData.password}
+                        onChange={e => setFormData({ ...formData, password: e.target.value })}
+                        style={{ paddingLeft: '2.5rem' }} required />
+                      <button type="button" onClick={() => setShowPass(p => !p)}
+                        style={{ position: 'absolute', left: '0.6rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '1rem' }}>
+                        {showPass ? '🙈' : '👁️'}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="form-group">
+                    <label>تأكيد كلمة المرور</label>
+                    <input type="password" placeholder="أعد كلمة المرور"
+                      value={formData.confirmPassword}
+                      onChange={e => setFormData({ ...formData, confirmPassword: e.target.value })} required />
+                  </div>
+                </div>
+
+                {/* reCAPTCHA container (invisible) */}
+                <div id="recaptcha-container"></div>
+
+                <button type="submit" className="btn btn-primary btn-full" disabled={sendingOtp}>
+                  {sendingOtp
+                    ? <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                        <span style={{ width: '18px', height: '18px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.8s linear infinite' }} />
+                        جارِ إرسال رمز التحقق...
+                      </span>
+                    : '📱 إرسال رمز التحقق'}
+                </button>
+              </form>
+            </>
+          )}
+
+          {/* ── Step 2: OTP Verification ── */}
+          {step === STEPS.OTP && (
+            <div className="auth-form">
+              <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+                <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>📱</div>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>تم إرسال رمز التحقق إلى</p>
+                <p style={{ fontWeight: 700, fontSize: '1.1rem', direction: 'ltr' }}>+967 {formData.phone}</p>
               </div>
+
+              {/* OTP Boxes */}
+              <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', marginBottom: '1.2rem' }}>
+                {otp.map((digit, idx) => (
+                  <input key={idx} ref={el => otpRefs.current[idx] = el}
+                    type="text" inputMode="numeric" maxLength={1} value={digit}
+                    onChange={e => handleOtpChange(idx, e.target.value)}
+                    onPaste={idx === 0 ? handleOtpPaste : undefined}
+                    onKeyDown={e => { if (e.key === 'Backspace' && !otp[idx] && idx > 0) otpRefs.current[idx-1]?.focus(); }}
+                    disabled={verifyingOtp || submitting}
+                    style={{
+                      width: '46px', height: '56px', textAlign: 'center', fontSize: '1.4rem',
+                      fontWeight: 700, border: `2px solid ${digit ? 'var(--primary)' : 'var(--glass-border)'}`,
+                      borderRadius: '12px', background: digit ? 'rgba(var(--primary-rgb),0.05)' : 'var(--glass-bg)',
+                      outline: 'none', transition: 'all 0.2s', direction: 'ltr', fontFamily: 'monospace',
+                    }} />
+                ))}
+              </div>
+
+              {(verifyingOtp || submitting) && (
+                <div style={{ textAlign: 'center', color: 'var(--primary)', marginBottom: '1rem', fontWeight: 600 }}>
+                  {verifyingOtp ? '⏳ جارِ التحقق من الرمز...' : '🎉 جارِ إنشاء حسابك...'}
+                </div>
+              )}
+
+              {/* Resend */}
+              <div style={{ textAlign: 'center', fontSize: '0.9rem', marginBottom: '1rem' }}>
+                {countdown > 0
+                  ? <span style={{ color: 'var(--text-muted)' }}>
+                      إعادة الإرسال بعد <strong style={{ color: 'var(--primary)' }}>{Math.floor(countdown/60)}:{String(countdown%60).padStart(2,'0')}</strong>
+                    </span>
+                  : <button type="button" onClick={() => { setStep(STEPS.INFO); setOtp(['','','','','','']); setError(''); }}
+                      style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600, textDecoration: 'underline' }}>
+                      🔄 إرسال رمز جديد
+                    </button>}
+              </div>
+
+              <button type="button" onClick={() => { setStep(STEPS.INFO); setOtp(['','','','','','']); setError(''); }}
+                style={{ width: '100%', background: 'none', border: '1px solid var(--glass-border)', borderRadius: '10px', padding: '0.6rem', color: 'var(--text-muted)', cursor: 'pointer', fontFamily: 'inherit' }}>
+                ← تعديل البيانات
+              </button>
             </div>
-            <button type="submit" className="btn btn-primary btn-full" disabled={isLoading}>
-              {isLoading ? 'جارِ الإنشاء...' : 'إنشاء الحساب'}
-            </button>
-          </form>
+          )}
 
           <div className="auth-footer">
             <p>لديك حساب بالفعل؟ <Link to="/login">تسجيل الدخول</Link></p>

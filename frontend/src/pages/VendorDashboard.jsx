@@ -734,6 +734,71 @@ const VendorDashboard = () => {
                     <div style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--text-muted)', background: '#f8fafc', borderRadius: '8px' }}>لا توجد تفاصيل للعناصر (قد يكون الطلب قديماً)</div>
                   )}
                 </div>
+
+                {/* Payment Proof & Vendor Account Section */}
+                {viewingOrder.payment_method !== 'cash' && viewingOrder.payment_method !== 'credit_card' && (
+                  <div style={{ marginTop: '1.5rem', padding: '1.2rem', background: '#fffbeb', borderRadius: '12px', border: '1px solid #fde68a' }}>
+                    <h4 style={{ color: '#92400e', marginBottom: '1rem', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>💳 بيانات الدفع المُرسلة من العميل</h4>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', fontSize: '0.9rem' }}>
+                      {viewingOrder.wallet_number && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <span style={{ fontWeight: 600, minWidth: '180px' }}>📱 رقم محفظة العميل:</span>
+                          <span dir="ltr" style={{ fontFamily: 'monospace', background: '#fef9c3', padding: '0.2rem 0.6rem', borderRadius: '6px', fontSize: '0.95rem' }}>{viewingOrder.wallet_number}</span>
+                        </div>
+                      )}
+                      {viewingOrder.wallet_transaction_id && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <span style={{ fontWeight: 600, minWidth: '180px' }}>🔑 رقم عملية التحويل:</span>
+                          <span dir="ltr" style={{ fontFamily: 'monospace', background: '#fef9c3', padding: '0.2rem 0.6rem', borderRadius: '6px', fontSize: '0.95rem', letterSpacing: '0.05em' }}>{viewingOrder.wallet_transaction_id}</span>
+                        </div>
+                      )}
+                      {viewingOrder.transfer_number && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <span style={{ fontWeight: 600, minWidth: '180px' }}>🏛️ رقم الحوالة البنكية:</span>
+                          <span dir="ltr" style={{ fontFamily: 'monospace', background: '#fef9c3', padding: '0.2rem 0.6rem', borderRadius: '6px', fontSize: '0.95rem' }}>{viewingOrder.transfer_number}</span>
+                        </div>
+                      )}
+                      {viewingOrder.receipt_image && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <span style={{ fontWeight: 600 }}>📎 صورة سند الدفع:</span>
+                          <a href={viewingOrder.receipt_image} target="_blank" rel="noreferrer"
+                            style={{ color: '#2563eb', textDecoration: 'underline', fontWeight: 600 }}>عرض السند ↗</a>
+                        </div>
+                      )}
+                      {!viewingOrder.wallet_number && !viewingOrder.wallet_transaction_id && !viewingOrder.transfer_number && !viewingOrder.receipt_image && (
+                        <p style={{ color: '#b45309', fontStyle: 'italic' }}>⚠️ لم يُرسل العميل بيانات تحويل بعد</p>
+                      )}
+                    </div>
+
+                    {/* Vendor payment account for this method */}
+                    {(() => {
+                      const vendorAcc = paymentAccounts.find(a => a.provider === viewingOrder.payment_method && a.is_active);
+                      const icons = { floosak: '📱', jawali: '📲', kuraimi: '🏦', transfer: '🏛️' };
+                      if (!vendorAcc) return (
+                        <div style={{ marginTop: '1rem', padding: '0.8rem', background: '#fee2e2', borderRadius: '8px', fontSize: '0.85rem', color: '#991b1b', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          ⚠️ لا يوجد حساب دفع مفعّل لهذه الطريقة.
+                          <button onClick={() => { setViewingOrder(null); setActiveTab('payments'); }}
+                            style={{ background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', textDecoration: 'underline', padding: 0, fontFamily: 'inherit', fontSize: 'inherit' }}>
+                            أضفه من تبويب طرق الدفع
+                          </button>
+                        </div>
+                      );
+                      return (
+                        <div style={{ marginTop: '1rem', padding: '1rem', background: '#ecfdf5', borderRadius: '10px', border: '1px solid #6ee7b7' }}>
+                          <div style={{ fontSize: '0.8rem', color: '#065f46', fontWeight: 600, marginBottom: '0.6rem' }}>✅ حساب متجرك الذي استقبل عليه الدفع:</div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+                            <span style={{ fontSize: '1.8rem' }}>{icons[vendorAcc.provider] || '💳'}</span>
+                            <div>
+                              <div dir="ltr" style={{ fontWeight: 800, fontSize: '1.1rem', letterSpacing: '0.05em', color: '#0f172a' }}>{vendorAcc.account_number}</div>
+                              <div style={{ fontSize: '0.85rem', color: '#475569' }}>باسم: {vendorAcc.account_name}</div>
+                              {vendorAcc.bank_name && <div style={{ fontSize: '0.82rem', color: '#64748b' }}>🏦 {vendorAcc.bank_name}</div>}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
                 
                 <div style={{ marginTop: '2rem', display: 'flex', justifyContent: 'center' }}>
                   <button className="btn btn-primary" onClick={() => setViewingOrder(null)} style={{ padding: '0.6rem 2rem' }}>إغلاق</button>
