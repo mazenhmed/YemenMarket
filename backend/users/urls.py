@@ -1,7 +1,7 @@
 from django.urls import path
 from rest_framework_simplejwt.views import TokenRefreshView
 from rest_framework_simplejwt.views import TokenObtainPairView
-from .views import RegisterView, UserDetailView, admin_stats, admin_users
+from .views import RegisterView, UserDetailView, admin_stats, admin_users, FirebaseAuthView, PhoneLoginView, PhoneRegisterView
 from .serializers import CustomTokenObtainPairSerializer
 
 
@@ -15,6 +15,9 @@ urlpatterns = [
     path('login/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('me/', UserDetailView.as_view(), name='me'),
+    path('phone-login/', PhoneLoginView.as_view(), name='phone-login'),
+    path('phone-register/', PhoneRegisterView.as_view(), name='phone-register'),
+    path('firebase-auth/', FirebaseAuthView.as_view(), name='firebase-auth'),
     path('admin/stats/', admin_stats, name='admin-stats'),
     path('admin/users/', admin_users, name='admin-users'),
 ]
