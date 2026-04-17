@@ -8,6 +8,7 @@ from django.db.models import Q
 from .models import User
 from .serializers import UserSerializer, RegisterSerializer, ProfileUpdateSerializer
 from core.permissions import IsAdmin
+from .otp_service import send_whatsapp_otp, verify_otp, normalize_phone
 
 
 class RegisterView(generics.CreateAPIView):
@@ -86,45 +87,55 @@ class PhoneLoginView(APIView):
         return Response(_issue_tokens(user), status=status.HTTP_200_OK)
 
 
-class PhoneRegisterView(APIView):
+class SendWhatsAppOTPView(APIView):
     """
-    POST /api/users/phone-register/
-    Register with name + phone + password + Firebase ID token (OTP verified).
-    Body: { name, phone, password, firebase_id_token }
+    POST /api/users/send-otp/
+    Send a WhatsApp OTP to the given phone number.
+    Body: { phone }
     """
     permission_classes = (permissions.AllowAny,)
 
     def post(self, request):
-        name        = request.data.get('name', '').strip()
-        phone       = request.data.get('phone', '').strip()
-        password    = request.data.get('password', '').strip()
-        id_token    = request.data.get('firebase_id_token', '').strip()
-        role        = request.data.get('role', 'customer')
+        phone = request.data.get('phone', '').strip()
+        if not phone:
+            return Response({'error': 'يرجى إدخال رقم الجوال'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Validate inputs
+        result = send_whatsapp_otp(phone)
+        if result['success']:
+            return Response({'message': result['message']}, status=status.HTTP_200_OK)
+        return Response({'error': result['message']}, status=status.HTTP_429_TOO_MANY_REQUESTS)
+
+
+class PhoneRegisterView(APIView):
+    """
+    POST /api/users/phone-register/
+    Register with name + phone + password + OTP code (WhatsApp verified).
+    Body: { name, phone, password, otp_code, role }
+    """
+    permission_classes = (permissions.AllowAny,)
+
+    def post(self, request):
+        name     = request.data.get('name', '').strip()
+        phone    = request.data.get('phone', '').strip()
+        password = request.data.get('password', '').strip()
+        otp_code = request.data.get('otp_code', '').strip()
+        role     = request.data.get('role', 'customer')
+
         if not name:
             return Response({'error': 'يرجى إدخال الاسم'}, status=status.HTTP_400_BAD_REQUEST)
         if not phone:
             return Response({'error': 'يرجى إدخال رقم الجوال'}, status=status.HTTP_400_BAD_REQUEST)
         if not password or len(password) < 6:
             return Response({'error': 'كلمة المرور يجب أن تكون 6 أحرف على الأقل'}, status=status.HTTP_400_BAD_REQUEST)
-        if not id_token:
-            return Response({'error': 'يجب التحقق من رقم الجوال أولاً'}, status=status.HTTP_400_BAD_REQUEST)
+        if not otp_code:
+            return Response({'error': 'يرجى إدخال رمز التحقق'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Normalize phone
-        normalized = phone.replace('+967', '').replace('+', '').strip().lstrip('0')
+        # Verify OTP
+        otp_result = verify_otp(phone, otp_code)
+        if not otp_result['valid']:
+            return Response({'error': otp_result['message']}, status=status.HTTP_401_UNAUTHORIZED)
 
-        # Verify Firebase OTP token
-        try:
-            from .firebase_service import verify_firebase_token
-            firebase_data = verify_firebase_token(id_token)
-            firebase_phone = firebase_data.get('phone', '').replace('+967', '').strip().lstrip('0')
-            # Ensure the token belongs to this phone number
-            if firebase_phone and firebase_phone != normalized:
-                return Response({'error': 'رقم الجوال لا يطابق رمز التحقق'},
-                                status=status.HTTP_400_BAD_REQUEST)
-        except ValueError as e:
-            return Response({'error': str(e)}, status=status.HTTP_401_UNAUTHORIZED)
+        normalized = normalize_phone(phone)
 
         # Check if phone already registered
         if User.objects.filter(phone=normalized).exists():
