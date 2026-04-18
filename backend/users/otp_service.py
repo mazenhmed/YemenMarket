@@ -138,15 +138,29 @@ def verify_otp(phone: str, code: str) -> dict:
         return {'valid': False, 'message': 'تجاوزت عدد المحاولات المسموحة. اطلب رمزاً جديداً.'}
 
     stored_otp = cache.get(cache_key)
+    
+    # --- DEBUG LOGGING ---
+    with open('otp_debug.log', 'a', encoding='utf-8') as f:
+        import datetime
+        timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        f.write(f"[{timestamp}] Checking for: {normalized}\n")
+        f.write(f"[{timestamp}] Stored: '{stored_otp}', Provided: '{code}'\n")
+    # ---------------------
+
     if not stored_otp:
         return {'valid': False, 'message': 'انتهت صلاحية رمز التحقق أو لم يُرسَل بعد'}
 
+    # Ensure robust string comparison
     if str(stored_otp).strip() != str(code).strip():
         cache.set(attempts_key, attempts + 1, timeout=OTP_EXPIRY_SECONDS)
         remaining = MAX_ATTEMPTS - (attempts + 1)
+        with open('otp_debug.log', 'a', encoding='utf-8') as f:
+            f.write(f"[{timestamp}] RESULT: FAILED (mismatch)\n\n")
         return {'valid': False, 'message': f'رمز التحقق غير صحيح. ({remaining} محاولات متبقية)'}
 
     # OTP صحيح - احذفه لمنع إعادة الاستخدام
     cache.delete(cache_key)
     cache.delete(attempts_key)
+    with open('otp_debug.log', 'a', encoding='utf-8') as f:
+        f.write(f"[{timestamp}] RESULT: SUCCESS ✅\n\n")
     return {'valid': True, 'message': 'تم التحقق بنجاح ✅'}

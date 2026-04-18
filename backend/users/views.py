@@ -63,10 +63,10 @@ class PhoneLoginView(APIView):
             return Response({'error': 'يرجى إدخال رقم الجوال وكلمة المرور'},
                             status=status.HTTP_400_BAD_REQUEST)
 
-        # Normalize phone: remove +967 prefix
-        normalized = phone.replace('+967', '').replace('+', '').strip().lstrip('0')
+        # Normalize phone using standard utility
+        normalized = normalize_phone(phone)
 
-        # Try to find user by phone first, then by username
+        # Try to find user by normalized phone first, then by username
         user = (
             User.objects.filter(phone=normalized).first() or
             User.objects.filter(username=phone).first() or
@@ -158,6 +158,53 @@ class PhoneRegisterView(APIView):
         )
 
         return Response(_issue_tokens(user), status=status.HTTP_201_CREATED)
+
+
+class LinkPhoneView(APIView):
+    """
+    POST /api/users/link-phone/
+    Link a phone number to an existing account using OTP.
+    Body: { phone, otp_code }
+    """
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def post(self, request):
+        phone    = request.data.get('phone', '').strip()
+        otp_code = request.data.get('otp_code', '').strip()
+
+        if not phone or not otp_code:
+            return Response({'error': 'يرجى إدخال رقم الجوال ورمز التحقق'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Verify OTP
+        otp_result = verify_otp(phone, otp_code)
+        if not otp_result['valid']:
+            return Response({'error': otp_result['message']}, status=status.HTTP_401_UNAUTHORIZED)
+
+        normalized = normalize_phone(phone)
+
+        # Check if phone already registered to another user
+        if User.objects.filter(phone=normalized).exclude(id=request.user.id).exists():
+            return Response({'error': 'رقم الجوال مسجّل مسبقاً لحساب آخر'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Update User
+        user = request.user
+        user.phone = normalized
+        user.save(update_fields=['phone'])
+
+        # Update Vendor profile if exists
+        if hasattr(user, 'vendor_profile'):
+            vendor = user.vendor_profile
+            vendor.phone = normalized
+            vendor.save(update_fields=['phone'])
+
+        return Response({
+            'message': 'تم ربط رقم الهاتف بنجاح ✅',
+            'user': {
+                'id':    user.id,
+                'phone': user.phone,
+                'role':  user.role
+            }
+        }, status=status.HTTP_200_OK)
 
 
 class FirebaseAuthView(APIView):
