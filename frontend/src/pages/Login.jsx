@@ -15,9 +15,15 @@ const Login = () => {
   const navigate = useNavigate();
   const toast = useToast();
 
-  const navigateByRole = (role) => {
-    if (role === 'admin') navigate('/admin');
-    else if (role === 'vendor') navigate('/vendor/dashboard');
+  const navigateByRole = (user) => {
+    if (user.role === 'vendor' && !user.phone) {
+      toast.info('🛡️ خطوة أمان: يرجى ربط رقم جوالك وتوثيقه للمتابعة');
+      navigate('/verify-phone');
+      return;
+    }
+
+    if (user.role === 'admin') navigate('/admin');
+    else if (user.role === 'vendor') navigate('/vendor/dashboard');
     else navigate('/');
   };
 
@@ -40,36 +46,22 @@ const Login = () => {
 
     setIsLoading(true);
     try {
-      // Both phone and username go through the same endpoint
       const res = await phoneLogin(identifier.trim(), password);
       const { access, refresh, user } = res.data;
       localStorage.setItem('access_token', access);
       localStorage.setItem('refresh_token', refresh);
       localStorage.setItem('user', JSON.stringify(user));
       toast.success(`مرحباً بك! 👋`);
-      navigateByRole(user.role);
+      navigateByRole(user);
     } catch (err) {
-      const msg = err.response?.data?.error;
-      if (msg) {
-        setError(msg);
+      console.error('Login error detail:', err.response?.data);
+      const backendError = err.response?.data?.error;
+      const backendDetails = err.response?.data?.details;
+      
+      if (backendError) {
+        setError(`${backendError}${backendDetails ? ': ' + backendDetails : ''}`);
       } else {
-        // Demo fallback
-        const demos = [
-          { id: 'admin', password: 'admin123', role: 'admin' },
-          { id: 'vendor', password: 'vendor123', role: 'vendor' },
-          { id: 'customer', password: 'customer123', role: 'customer' },
-        ];
-        const demo = demos.find(d => d.id === identifier.trim() && d.password === password);
-        if (demo) {
-          demoLogin(
-            { id: 1, username: demo.id, email: '', role: demo.role, phone: '' },
-            { access: 'demo-token', refresh: 'demo-refresh' }
-          );
-          toast.info('تم الدخول بوضع العرض التجريبي');
-          navigateByRole(demo.role);
-        } else {
-          setError('بيانات الدخول غير صحيحة');
-        }
+        setError('تعذر الاتصال بالخادم. يرجى التأكد من تشغيل السيرفر.');
       }
     }
     setIsLoading(false);

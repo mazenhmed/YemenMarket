@@ -60,7 +60,7 @@ const AdminDashboard = () => {
     };
     fetchAll();
     // Fetch payment accounts separately
-    getPaymentAccounts().then(res => setPaymentAccounts(res.data.results || res.data || [])).catch(() => {});
+    getPaymentAccounts().then(res => setPaymentAccounts(res.data.results || res.data || [])).catch(() => { });
   }, []);
 
   const handleProductAction = async (productId, action) => {
@@ -237,7 +237,7 @@ const AdminDashboard = () => {
                         <span>📞 {selectedStore.phone}</span>
                       </div>
                       {selectedStore.id_document && (
-                        <div style={{marginTop: '1rem'}}>
+                        <div style={{ marginTop: '1rem' }}>
                           <a href={selectedStore.id_document} target="_blank" rel="noreferrer" className="btn btn-outline btn-sm">📄 عرض وثيقة الهوية المرفقة</a>
                         </div>
                       )}
@@ -273,7 +273,7 @@ const AdminDashboard = () => {
                             <span>⭐ {store.rating}</span>
                             <span>📍 {store.city}</span>
                             <span className="order-status" style={{ background: s.bg, color: s.c }}>{s.text}</span>
-                            {store.status === 'pending' && store.id_document && <span style={{color:'#f59e0b', fontSize:'0.8rem'}}>📎 مرفق هوية</span>}
+                            {store.status === 'pending' && store.id_document && <span style={{ color: '#f59e0b', fontSize: '0.8rem' }}>📎 مرفق هوية</span>}
                           </div>
                         </div>
                         <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -406,7 +406,7 @@ const AdminDashboard = () => {
               <h3>تفاصيل المبيعات والأرباح ({allTransactions.length})</h3>
               <div style={{ display: 'flex', gap: '1rem' }}>
                 <div className="stat-badge" style={{ background: '#ecfdf5', color: '#059669', padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid #a7f3d0' }}>
-                  إجمالي أرباح المنصة: <strong>{Number(allTransactions.reduce((acc, t) => acc + Number(t.commission||0), 0)).toLocaleString()} ريال</strong>
+                  إجمالي أرباح المنصة: <strong>{Number(allTransactions.reduce((acc, t) => acc + Number(t.commission || 0), 0)).toLocaleString()} ريال</strong>
                 </div>
               </div>
             </div>
@@ -423,7 +423,7 @@ const AdminDashboard = () => {
               ) : (
                 allTransactions.map(trans => (
                   <div key={trans.id} className="table-row" style={{ gridTemplateColumns: '1fr 1.5fr 1fr 1fr 1fr 1fr 1.5fr', alignItems: 'center' }}>
-                    <span className="order-id" style={{fontWeight: 600}}>#{trans.order_number}</span>
+                    <span className="order-id" style={{ fontWeight: 600 }}>#{trans.order_number}</span>
                     <span>🏪 {trans.store_name || 'غير معروف'}</span>
                     <span style={{ fontWeight: 600 }}>{Number(trans.amount || 0).toLocaleString()} ريال</span>
                     <span style={{ color: '#059669', fontWeight: 600, background: '#ecfdf5', padding: '0.3rem 0.6rem', borderRadius: '6px', textAlign: 'center' }}>
@@ -529,19 +529,19 @@ const AdminDashboard = () => {
                 <div className="form-row" style={{ marginTop: '1rem' }}>
                   <div className="form-group">
                     <label>الاسم (عربي) *</label>
-                    <input type="text" value={editingCategory.name_ar || editingCategory.name} onChange={e => setEditingCategory({...editingCategory, name_ar: e.target.value, name: editingCategory.isNew ? e.target.value : editingCategory.name})} />
+                    <input type="text" value={editingCategory.name_ar || editingCategory.name} onChange={e => setEditingCategory({ ...editingCategory, name_ar: e.target.value, name: editingCategory.isNew ? e.target.value : editingCategory.name })} />
                   </div>
                   <div className="form-group">
                     <label>الاسم (إنجليزي/اختياري)</label>
-                    <input type="text" value={editingCategory.name} onChange={e => setEditingCategory({...editingCategory, name: e.target.value})} />
+                    <input type="text" value={editingCategory.name} onChange={e => setEditingCategory({ ...editingCategory, name: e.target.value })} />
                   </div>
                   <div className="form-group">
                     <label>أيقونة (Emoji)</label>
-                    <input type="text" maxLength="4" value={editingCategory.icon || ''} onChange={e => setEditingCategory({...editingCategory, icon: e.target.value})} />
+                    <input type="text" maxLength="4" value={editingCategory.icon || ''} onChange={e => setEditingCategory({ ...editingCategory, icon: e.target.value })} />
                   </div>
                   <div className="form-group">
                     <label>صورة القسم</label>
-                    <input type="file" accept="image/*" onChange={e => setEditingCategory({...editingCategory, imageFile: e.target.files[0]})} style={{ padding: '0.4rem', background: '#fff' }} />
+                    <input type="file" accept="image/*" onChange={e => setEditingCategory({ ...editingCategory, imageFile: e.target.files[0] })} style={{ padding: '0.4rem', background: '#fff' }} />
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
@@ -556,13 +556,13 @@ const AdminDashboard = () => {
                       }
 
                       if (editingCategory.isNew) {
-                         const res = await createCategory(payload);
-                         setCategories([...categories, res.data]);
-                         toast.success('تمت الإضافة بنجاح');
+                        const res = await createCategory(payload);
+                        setCategories([...categories, res.data]);
+                        toast.success('تمت الإضافة بنجاح');
                       } else {
-                         const res = await updateCategory(editingCategory.id, payload);
-                         setCategories(categories.map(c => c.id === editingCategory.id ? res.data : c));
-                         toast.success('تم التعديل بنجاح');
+                        const res = await updateCategory(editingCategory.id, payload);
+                        setCategories(categories.map(c => c.id === editingCategory.id ? res.data : c));
+                        toast.success('تم التعديل بنجاح');
                       }
                       setEditingCategory(null);
                     } catch (e) { toast.error('فشل حفظ القسم'); }
@@ -584,12 +584,12 @@ const AdminDashboard = () => {
                   <span style={{ display: 'flex', gap: '0.5rem' }}>
                     <button className="action-btn" onClick={() => setEditingCategory(cat)}>✏️ تعديل</button>
                     <button className="action-btn danger" onClick={async () => {
-                      if(window.confirm('هل أنت متأكد من حذف هذا القسم؟')) {
+                      if (window.confirm('هل أنت متأكد من حذف هذا القسم؟')) {
                         try {
                           await deleteCategory(cat.id);
                           setCategories(categories.filter(c => c.id !== cat.id));
                           toast.success('تم حذف القسم');
-                        } catch(e) { toast.error('فشل في عملية الحذف'); }
+                        } catch (e) { toast.error('فشل في عملية الحذف'); }
                       }
                     }}>🗑️ حذف</button>
                   </span>

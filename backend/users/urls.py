@@ -1,16 +1,16 @@
 from django.urls import path
 from rest_framework_simplejwt.views import TokenRefreshView
 from rest_framework_simplejwt.views import TokenObtainPairView
-from .views import (RegisterView, UserDetailView, admin_stats, admin_users,
-                    FirebaseAuthView, PhoneLoginView, PhoneRegisterView,
-                    SendWhatsAppOTPView, LinkPhoneView)
+from .views import (
+    RegisterView, UserDetailView, admin_stats, admin_users,
+    FirebaseAuthView, PhoneLoginView, PhoneRegisterView,
+    SendWhatsAppOTPView, LinkPhoneView
+)
 from .serializers import CustomTokenObtainPairSerializer
 
-
-# Custom token view that uses our serializer
+# Custom token view 
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
-
 
 urlpatterns = [
     path('register/', RegisterView.as_view(), name='register'),
