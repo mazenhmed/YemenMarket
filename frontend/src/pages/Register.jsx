@@ -183,9 +183,9 @@ const Register = () => {
                     </span>
                     <input type="tel" placeholder="771234567"
                       value={formData.phone}
-                      onChange={e => setFormData({ ...formData, phone: e.target.value.replace(/\D/g, '').slice(0, 9) })}
+                      onChange={e => setFormData({ ...formData, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
                       style={{ paddingLeft: '5.5rem', direction: 'ltr', letterSpacing: '0.08em', fontSize: '1.05rem' }}
-                      dir="ltr" maxLength={9} required />
+                      dir="ltr" maxLength={10} required />
                   </div>
                   <small style={{ color: 'var(--text-muted)', fontSize: '0.78rem', marginTop: '0.3rem', display: 'block' }}>
                     💬 سيُرسل رمز التحقق عبر واتساب لهذا الرقم

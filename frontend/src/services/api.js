@@ -52,6 +52,7 @@ export const updateProfile = (data) => API.patch('/users/me/', data);
 export const firebaseLogin = (idToken) => API.post('/users/firebase-auth/', { id_token: idToken });
 export const phoneLogin = (phone, password) => API.post('/users/phone-login/', { phone, password });
 export const phoneRegister = (data) => API.post('/users/phone-register/', data);
+export const linkPhone = (phone, otpCode) => API.post('/users/link-phone/', { phone, otp_code: otpCode });
 // WhatsApp OTP
 export const sendWhatsAppOTP = (phone) => API.post('/users/send-otp/', { phone });
 

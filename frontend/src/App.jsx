@@ -23,6 +23,7 @@ import SalesReport from './pages/SalesReport';
 import Notifications from './pages/Notifications';
 import Invoice from './pages/Invoice';
 import OrderTracking from './pages/OrderTracking';
+import VerifyPhone from './pages/VerifyPhone';
 import NotFound from './pages/NotFound';
 import './index.css';
 
@@ -68,6 +69,9 @@ function App() {
                     } />
                     <Route path="/tracking/:trackingNumber" element={<OrderTracking />} />
                     <Route path="/tracking" element={<OrderTracking />} />
+                    <Route path="/verify-phone" element={
+                      <ProtectedRoute><VerifyPhone /></ProtectedRoute>
+                    } />
                     <Route path="*" element={<NotFound />} />
                   </Routes>
                 </main>

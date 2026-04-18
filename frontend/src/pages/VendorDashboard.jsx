@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import {
@@ -19,7 +19,17 @@ const FALLBACK_STATS = [
 
 const VendorDashboard = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const toast = useToast();
+
+  useEffect(() => {
+    // If vendor has no phone, force them to verify it first
+    if (user && user.role === 'vendor' && !user.phone) {
+      toast.info('🛡️ يرجى ربط رقم جوالك وتوثيقه قبل المتابعة');
+      navigate('/verify-phone');
+    }
+  }, [user, navigate, toast]);
+
   const [activeTab, setActiveTab] = useState('overview');
   const [showAddProduct, setShowAddProduct] = useState(false);
   const [loading, setLoading] = useState(true);

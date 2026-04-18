@@ -34,7 +34,7 @@ const Login = () => {
       return;
     }
     if (!useUsername && identifier.replace(/\D/g, '').length < 9) {
-      setError('يرجى إدخال رقم جوال يمني صحيح (9 أرقام)');
+      setError('يرجى إدخال رقم جوال يمني صحيح');
       return;
     }
 
@@ -105,10 +105,10 @@ const Login = () => {
                     type="tel"
                     placeholder="771234567"
                     value={identifier}
-                    onChange={e => setIdentifier(e.target.value.replace(/\D/g, '').slice(0, 9))}
+                    onChange={e => setIdentifier(e.target.value.replace(/\D/g, '').slice(0, 10))}
                     style={{ paddingLeft: '5.5rem', direction: 'ltr', letterSpacing: '0.08em', fontSize: '1.05rem' }}
                     dir="ltr"
-                    maxLength={9}
+                    maxLength={10}
                     autoComplete="tel"
                   />
                 </div>
