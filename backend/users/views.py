@@ -66,12 +66,14 @@ class PhoneLoginView(APIView):
         # Normalize phone using standard utility
         normalized = normalize_phone(phone)
 
-        # Try to find user by normalized phone first, then by username
-        user = (
-            User.objects.filter(phone=normalized).first() or
-            User.objects.filter(username=phone).first() or
-            User.objects.filter(username=normalized).first()
-        )
+        # Bug fix: Only search by phone if normalization produced a valid-looking phone
+        user = None
+        if normalized:
+            user = User.objects.filter(phone=normalized).first()
+        
+        if not user:
+            user = User.objects.filter(username=phone).first() or \
+                   User.objects.filter(username=normalized).first()
 
         if user is None:
             return Response({'error': 'رقم الجوال أو اسم المستخدم غير مسجّل'},
