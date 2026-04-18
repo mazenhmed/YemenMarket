@@ -8,7 +8,7 @@ from django.db.models import Q
 from .models import User
 from .serializers import UserSerializer, RegisterSerializer, ProfileUpdateSerializer
 from core.permissions import IsAdmin
-from .otp_service import send_whatsapp_otp, verify_otp, normalize_phone
+# Imports moved inside views to prevent circular dependency
 
 
 class RegisterView(generics.CreateAPIView):
@@ -98,10 +98,12 @@ class SendWhatsAppOTPView(APIView):
     permission_classes = (permissions.AllowAny,)
 
     def post(self, request):
+        from .otp_service import normalize_phone
         phone = request.data.get('phone', '').strip()
         if not phone:
             return Response({'error': 'يرجى إدخال رقم الجوال'}, status=status.HTTP_400_BAD_REQUEST)
 
+        from .otp_service import send_whatsapp_otp
         result = send_whatsapp_otp(phone)
         if result['success']:
             return Response({'message': result['message']}, status=status.HTTP_200_OK)
@@ -133,6 +135,7 @@ class PhoneRegisterView(APIView):
             return Response({'error': 'يرجى إدخال رمز التحقق'}, status=status.HTTP_400_BAD_REQUEST)
 
         # Verify OTP
+        from .otp_service import verify_otp, normalize_phone
         otp_result = verify_otp(phone, otp_code)
         if not otp_result['valid']:
             return Response({'error': otp_result['message']}, status=status.HTTP_401_UNAUTHORIZED)
@@ -178,6 +181,7 @@ class LinkPhoneView(APIView):
             return Response({'error': 'يرجى إدخال رقم الجوال ورمز التحقق'}, status=status.HTTP_400_BAD_REQUEST)
 
         # Verify OTP
+        from .otp_service import verify_otp, normalize_phone
         otp_result = verify_otp(phone, otp_code)
         if not otp_result['valid']:
             return Response({'error': otp_result['message']}, status=status.HTTP_401_UNAUTHORIZED)
