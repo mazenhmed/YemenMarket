@@ -16,8 +16,8 @@ if env_path.exists():
                 os.environ.setdefault(key.strip(), value.strip())
 
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-fallback-dev-key')
-DEBUG = os.environ.get('DEBUG', 'False').lower() in ('true', '1', 'yes')
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '*').split(',')
+DEBUG = True
+ALLOWED_HOSTS = ['*']
 
 INSTALLED_APPS = [
     'django.contrib.admin',

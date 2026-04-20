@@ -2,7 +2,7 @@ from django.urls import path
 from rest_framework_simplejwt.views import TokenRefreshView
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .views import (
-    RegisterView, UserDetailView, admin_stats, admin_users,
+    RegisterView, UserDetailView, admin_stats, admin_users, admin_delete_user,
     FirebaseAuthView, PhoneLoginView, PhoneRegisterView,
     SendWhatsAppOTPView, LinkPhoneView
 )
@@ -24,4 +24,5 @@ urlpatterns = [
     path('firebase-auth/', FirebaseAuthView.as_view(), name='firebase-auth'),
     path('admin/stats/', admin_stats, name='admin-stats'),
     path('admin/users/', admin_users, name='admin-users'),
+    path('admin/users/<int:user_id>/', admin_delete_user, name='admin-delete-user'),
 ]

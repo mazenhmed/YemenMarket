@@ -24,7 +24,7 @@ class VendorViewSet(viewsets.ModelViewSet):
         return [permissions.IsAuthenticated()]
 
     def get_queryset(self):
-        qs = Vendor.objects.all()
+        qs = Vendor.objects.all().order_by('-created_at')
         # Public only sees approved vendors
         if not self.request.user.is_authenticated or self.request.user.role != 'admin':
             if self.action == 'list':

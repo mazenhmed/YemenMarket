@@ -5,7 +5,8 @@ import {
   getAdminStats, getAdminUsers, getStores, getOrders,
   getProducts, updateOrderStatus, updateStore, getTransactions,
   confirmPayment, getPaymentAccounts, updatePaymentAccount,
-  getCategories, createCategory, updateCategory, deleteCategory
+  getCategories, createCategory, updateCategory, deleteCategory,
+  deleteAdminUser
 } from '../services/api';
 import { Link } from 'react-router-dom';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -51,10 +52,11 @@ const AdminDashboard = () => {
         setAllUsers(usersRes.data || []);
         setAllTransactions(transRes.data.results || transRes.data || []);
         setCategories(catsRes.data.results || catsRes.data || []);
-      } catch {
+      } catch (err) {
+        console.error('Admin API fetch failed:', err);
         setIsDemoMode(true);
         setPlatformStats(DEMO_STATS);
-        toast.info('وضع العرض التجريبي — قم بتشغيل الخادم للبيانات الحقيقية');
+        toast.error('خطأ في جلب البيانات، يرجى تسجيل الدخول مجدداً أو تشغيل الخادم.');
       }
       setLoading(false);
     };
@@ -114,6 +116,17 @@ const AdminDashboard = () => {
       toast.success('تم تحديث حساب الدفع');
     } catch {
       toast.error('فشل تحديث الحساب');
+    }
+  };
+
+  const handleDeleteUser = async (userId) => {
+    if (!window.confirm('هل أنت متأكد من حذف هذا المستخدم نهائياً؟')) return;
+    try {
+      await deleteAdminUser(userId);
+      setAllUsers(prev => prev.filter(u => u.id !== userId));
+      toast.success('تم حذف المستخدم بنجاح');
+    } catch (error) {
+      toast.error(error.response?.data?.error || 'فشل في عملية الحذف');
     }
   };
 
@@ -495,19 +508,22 @@ const AdminDashboard = () => {
           <div className="admin-section">
             <h3 style={{ marginBottom: '1rem' }}>المستخدمين ({allUsers.length})</h3>
             <div className="dashboard-table">
-              <div className="table-header" style={{ gridTemplateColumns: '1.5fr 2fr 1fr 1fr 1fr' }}>
-                <span>المستخدم</span><span>البريد الإلكتروني</span><span>الدور</span><span>المدينة</span><span>تاريخ الانضمام</span>
+              <div className="table-header" style={{ gridTemplateColumns: '1.5fr 2fr 1fr 1fr 1fr 1fr' }}>
+                <span>المستخدم</span><span>البريد الإلكتروني</span><span>الدور</span><span>المدينة</span><span>تاريخ الانضمام</span><span>إجراء</span>
               </div>
               {allUsers.map(u => {
                 const roleMap = { admin: { text: 'مدير', c: '#6366f1', bg: '#e0e7ff' }, vendor: { text: 'بائع', c: '#059669', bg: '#ecfdf5' }, customer: { text: 'عميل', c: '#f59e0b', bg: '#fef3c7' } };
                 const r = roleMap[u.role] || roleMap.customer;
                 return (
-                  <div key={u.id} className="table-row" style={{ gridTemplateColumns: '1.5fr 2fr 1fr 1fr 1fr' }}>
+                  <div key={u.id} className="table-row" style={{ gridTemplateColumns: '1.5fr 2fr 1fr 1fr 1fr 1fr' }}>
                     <span style={{ fontWeight: 600 }}>👤 {u.username}</span>
                     <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{u.email}</span>
                     <span className="order-status" style={{ background: r.bg, color: r.c }}>{r.text}</span>
                     <span>{u.city || '-'}</span>
                     <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{u.date_joined ? new Date(u.date_joined).toLocaleDateString('ar') : '-'}</span>
+                    <span>
+                      <button className="action-btn danger" onClick={() => handleDeleteUser(u.id)}>🗑️ حذف</button>
+                    </span>
                   </div>
                 );
               })}

@@ -95,7 +95,7 @@ class OrderViewSet(viewsets.ModelViewSet):
 class TransactionViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = TransactionSerializer
     permission_classes = [IsAdmin]
-    queryset = Transaction.objects.all()
+    queryset = Transaction.objects.all().order_by('-created_at')
 
 
 class PaymentAccountViewSet(viewsets.ModelViewSet):

@@ -1,9 +1,10 @@
 import axios from 'axios';
 
-const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
+const baseURL = import.meta.env.DEV ? 'http://127.0.0.1:8000/api' : 'https://yemenmarket.onrender.com/api';
 
 const API = axios.create({
-  baseURL: isLocal ? 'http://127.0.0.1:8000/api' : 'https://yemenmarket.onrender.com/api',
+  baseURL,
 });
 
 // Attach JWT token to every request
@@ -25,7 +26,6 @@ API.interceptors.response.use(
       const refresh = localStorage.getItem('refresh_token');
       if (refresh) {
         try {
-          const baseURL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
           const res = await axios.post(`${baseURL}/users/refresh/`, { refresh });
           localStorage.setItem('access_token', res.data.access);
           if (res.data.refresh) {
@@ -40,6 +40,19 @@ API.interceptors.response.use(
           window.location.href = '/login';
           return Promise.reject(refreshError);
         }
+      } else {
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+        return Promise.reject(error);
+      }
+    } else if (error.response?.status === 401 || error.response?.status === 403) {
+      if (error.response?.status === 401) {
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
       }
     }
     return Promise.reject(error);
@@ -104,6 +117,7 @@ export const createPaymentAccount = (data) => API.post('/orders/payment-accounts
 // ========== Admin ==========
 export const getAdminStats = () => API.get('/users/admin/stats/');
 export const getAdminUsers = () => API.get('/users/admin/users/');
+export const deleteAdminUser = (id) => API.delete(`/users/admin/users/${id}/`);
 export const getTransactions = () => API.get('/orders/transactions/');
 
 // ========== Wishlist ==========

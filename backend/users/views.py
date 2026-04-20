@@ -186,3 +186,17 @@ def admin_users(request):
         return Response(serializer.data)
     except Exception as e:
         return Response({'error': str(e)}, status=500)
+
+@api_view(['DELETE'])
+@permission_classes([IsAdmin])
+def admin_delete_user(request, user_id):
+    try:
+        user_to_delete = User.objects.get(id=user_id)
+        if user_to_delete.is_superuser:
+            return Response({'error': 'لا يمكن حذف مدير النظام الأساسي'}, status=status.HTTP_400_BAD_REQUEST)
+        user_to_delete.delete()
+        return Response({'message': 'تم حذف المستخدم بنجاح'})
+    except User.DoesNotExist:
+        return Response({'error': 'المستخدم غير موجود'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

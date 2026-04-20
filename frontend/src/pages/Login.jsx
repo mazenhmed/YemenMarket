@@ -15,15 +15,9 @@ const Login = () => {
   const navigate = useNavigate();
   const toast = useToast();
 
-  const navigateByRole = (user) => {
-    if (user.role === 'vendor' && !user.phone) {
-      toast.info('🛡️ خطوة أمان: يرجى ربط رقم جوالك وتوثيقه للمتابعة');
-      navigate('/verify-phone');
-      return;
-    }
-
-    if (user.role === 'admin') navigate('/admin');
-    else if (user.role === 'vendor') navigate('/vendor/dashboard');
+  const navigateByRole = (role) => {
+    if (role === 'admin') navigate('/admin');
+    else if (role === 'vendor') navigate('/vendor/dashboard');
     else navigate('/');
   };
 
@@ -46,18 +40,19 @@ const Login = () => {
 
     setIsLoading(true);
     try {
+      // Both phone and username go through the same endpoint
       const res = await phoneLogin(identifier.trim(), password);
       const { access, refresh, user } = res.data;
       localStorage.setItem('access_token', access);
       localStorage.setItem('refresh_token', refresh);
       localStorage.setItem('user', JSON.stringify(user));
       toast.success(`مرحباً بك! 👋`);
-      navigateByRole(user);
+      navigateByRole(user.role);
     } catch (err) {
       console.error('Login error detail:', err.response?.data);
       const backendError = err.response?.data?.error;
       const backendDetails = err.response?.data?.details;
-      
+
       if (backendError) {
         setError(`${backendError}${backendDetails ? ': ' + backendDetails : ''}`);
       } else {
@@ -144,9 +139,9 @@ const Login = () => {
               style={{ marginTop: '0.5rem' }}>
               {isLoading
                 ? <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
-                    <span style={{ width: '18px', height: '18px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.8s linear infinite' }} />
-                    جارِ التحقق...
-                  </span>
+                  <span style={{ width: '18px', height: '18px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.8s linear infinite' }} />
+                  جارِ التحقق...
+                </span>
                 : '🔐 تسجيل الدخول'}
             </button>
           </form>

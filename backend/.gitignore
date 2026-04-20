@@ -7,3 +7,6 @@ __pycache__/
 
 # Firebase credentials - DO NOT COMMIT
 firebase-service-account.json
+
+# Database
+db.sqlite3
