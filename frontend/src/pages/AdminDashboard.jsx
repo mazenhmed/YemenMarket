@@ -41,16 +41,21 @@ const AdminDashboard = () => {
   useEffect(() => {
     const fetchAll = async () => {
       try {
-        const [statsRes, storesRes, prodsRes, ordersRes, usersRes, transRes, catsRes] = await Promise.all([
-          getAdminStats(), getStores({ page_size: 100 }), getProducts({ page_size: 100 }),
-          getOrders(), getAdminUsers(), getTransactions(), getCategories()
+        // تحميل البيانات الأساسية أولاً (تسريع البداية)
+        const [statsRes, storesRes, prodsRes, ordersRes, usersRes, catsRes] = await Promise.all([
+          getAdminStats(),
+          getStores({ page_size: 100 }),
+          getProducts({ page_size: 100 }),
+          getOrders(),
+          getAdminUsers(),
+          getCategories()
         ]);
         setPlatformStats(statsRes.data);
         setStores(storesRes.data.results || storesRes.data || []);
         setAllProducts(prodsRes.data.results || prodsRes.data || []);
         setAllOrders(ordersRes.data.results || ordersRes.data || []);
-        setAllUsers(usersRes.data || []);
-        setAllTransactions(transRes.data.results || transRes.data || []);
+        // admin_users الآن يُرجع { results, count, pages, page }
+        setAllUsers(usersRes.data.results || usersRes.data || []);
         setCategories(catsRes.data.results || catsRes.data || []);
       } catch (err) {
         console.error('Admin API fetch failed:', err);
@@ -61,8 +66,9 @@ const AdminDashboard = () => {
       setLoading(false);
     };
     fetchAll();
-    // Fetch payment accounts separately
-    getPaymentAccounts().then(res => setPaymentAccounts(res.data.results || res.data || [])).catch(() => { });
+    // تحميل البيانات الثانوية بشكل منفصل لتسريع التحميل الأول
+    getPaymentAccounts().then(res => setPaymentAccounts(res.data.results || res.data || [])).catch(() => {});
+    getTransactions().then(res => setAllTransactions(res.data.results || res.data || [])).catch(() => {});
   }, []);
 
   const handleProductAction = async (productId, action) => {
@@ -512,16 +518,17 @@ const AdminDashboard = () => {
           <div className="admin-section">
             <h3 style={{ marginBottom: '1rem' }}>المستخدمين ({allUsers.length})</h3>
             <div className="dashboard-table">
-              <div className="table-header" style={{ gridTemplateColumns: '1.5fr 2fr 1fr 1fr 1fr 1fr' }}>
-                <span>المستخدم</span><span>البريد الإلكتروني</span><span>الدور</span><span>المدينة</span><span>تاريخ الانضمام</span><span>إجراء</span>
+              <div className="table-header" style={{ gridTemplateColumns: '1.5fr 1.5fr 1fr 1fr 1fr 1fr 1fr' }}>
+                <span>المستخدم</span><span>البريد الإلكتروني</span><span>الجوال</span><span>الدور</span><span>المدينة</span><span>تاريخ الانضمام</span><span>إجراء</span>
               </div>
               {allUsers.map(u => {
                 const roleMap = { admin: { text: 'مدير', c: '#6366f1', bg: '#e0e7ff' }, vendor: { text: 'بائع', c: '#059669', bg: '#ecfdf5' }, customer: { text: 'عميل', c: '#f59e0b', bg: '#fef3c7' } };
                 const r = roleMap[u.role] || roleMap.customer;
                 return (
-                  <div key={u.id} className="table-row" style={{ gridTemplateColumns: '1.5fr 2fr 1fr 1fr 1fr 1fr' }}>
+                  <div key={u.id} className="table-row" style={{ gridTemplateColumns: '1.5fr 1.5fr 1fr 1fr 1fr 1fr 1fr' }}>
                     <span style={{ fontWeight: 600 }}>👤 {u.username}</span>
-                    <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{u.email}</span>
+                    <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{u.email || '-'}</span>
+                    <span style={{ fontSize: '0.85rem', direction: 'ltr' }}>{u.phone || '-'}</span>
                     <span className="order-status" style={{ background: r.bg, color: r.c }}>{r.text}</span>
                     <span>{u.city || '-'}</span>
                     <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{u.date_joined ? new Date(u.date_joined).toLocaleDateString('ar') : '-'}</span>

@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import {
-  getVendorProducts, getOrders, createProduct, updateProduct, getCategories, 
+  getVendorProducts, getOrders, createProduct, updateProduct, deleteProduct, getCategories, 
   updateOrderStatus, getMyStore, updateStore, createStore,
   getVendorPaymentAccounts, createVendorPaymentAccount, updateVendorPaymentAccount, deleteVendorPaymentAccount,
   getPaymentAccounts
@@ -207,6 +207,17 @@ const VendorDashboard = () => {
     setProductForm(defaultProductState);
     setIsEditing(false);
     setEditingProductId(null);
+  };
+
+  const handleDeleteProduct = async (productId) => {
+    if (!window.confirm('هل أنت متأكد من حذف هذا المنتج نهائياً؟')) return;
+    try {
+      await deleteProduct(productId);
+      setProducts(prev => prev.filter(p => p.id !== productId));
+      toast.success('تم حذف المنتج بنجاح 🗑️');
+    } catch (err) {
+      toast.error('لم نتمكن من حذف المنتج. قد يكون مرتبطاً بطلبات سابقة.');
+    }
   };
 
   const handleUpdateStatus = async (orderId, newStatus) => {
@@ -517,21 +528,22 @@ const VendorDashboard = () => {
               </div>
             ) : (
               <div className="dashboard-table">
-                <div className="table-header">
-                  <span>المنتج</span><span>السعر</span><span>المخزون</span><span>المبيعات</span><span>الحالة</span>
+                <div className="table-header" style={{ gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 1fr' }}>
+                  <span>المنتج</span><span>السعر</span><span>المخزون</span><span>المبيعات</span><span>الحالة</span><span>إجراء</span>
                 </div>
                 {products.slice(0, activeTab === 'overview' ? 5 : products.length).map(p => {
                   const statusMap = { active: { text: 'نشط', color: '#059669', bg: '#ecfdf5' }, pending: { text: 'بانتظار المراجعة', color: '#d97706', bg: '#fef3c7' }, suspended: { text: 'موقوف', color: '#dc2626', bg: '#fef2f2' } };
                   const st = statusMap[p.status] || statusMap.active;
                   return (
-                    <div key={p.id} className="table-row">
+                    <div key={p.id} className="table-row" style={{ gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 1fr' }}>
                       <span style={{ fontWeight: 600 }}>{p.name}</span>
                       <span>{Number(p.price).toLocaleString()} ريال</span>
                       <span style={{ color: p.stock_quantity === 0 ? '#dc2626' : 'inherit' }}>{p.stock_quantity} قطعة</span>
                       <span>{p.sold_count || 0} مبيع</span>
                       <span className="order-status" style={{ background: st.bg, color: st.color }}>{st.text}</span>
-                      <span>
+                      <span style={{ display: 'flex', gap: '0.4rem' }}>
                         <button className="action-btn success" onClick={() => openEditModal(p)}>✏️ تعديل</button>
+                        <button className="action-btn danger" style={{ background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca' }} onClick={() => handleDeleteProduct(p.id)}>🗑️ حذف</button>
                       </span>
                     </div>
                   );
