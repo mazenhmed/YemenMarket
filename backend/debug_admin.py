@@ -6,6 +6,7 @@ django.setup()
 
 from users.models import User
 from rest_framework.test import APIClient
+import json
 
 client = APIClient()
 admin_user, _ = User.objects.get_or_create(username='testadmin', email='testadmin@yemenmarket.com', role='admin')
@@ -14,22 +15,19 @@ admin_user.save()
 
 client.force_authenticate(user=admin_user)
 
-endpoints = [
-    '/api/users/admin/stats/',
-    '/api/users/admin/users/',
-    '/api/vendors/stores/',
-    '/api/products/items/',
-    '/api/orders/checkout/',
-    '/api/orders/transactions/',
-    '/api/products/categories/',
-]
+# Create a dummy user to delete
+dummy_user, _ = User.objects.get_or_create(username='dummy_to_delete', email='dummy@yemenmarket.com', role='customer')
 
-print("Testing API Endpoints as Admin:")
-for url in endpoints:
-    response = client.get(url)
-    status_emoji = 'OK' if response.status_code == 200 else 'FAIL'
-    print(f"[{status_emoji}] {url} -> {response.status_code}")
-    if response.status_code != 200:
-        print(f"    Error: {response.data}")
+url = f"/api/users/admin/users/{dummy_user.id}/"
+print(f"Testing DELETE on {url}")
 
-print("\nAll tests completed successfully!")
+response = client.delete(url)
+print(f"Status Code: {response.status_code}")
+try:
+    print(f"Response Data: {json.dumps(response.data, ensure_ascii=False)}")
+except Exception as e:
+    print(f"Failed to print data: {e}")
+
+# Check if actually deleted
+exists = User.objects.filter(id=dummy_user.id).exists()
+print(f"Does dummy user still exist? {exists}")

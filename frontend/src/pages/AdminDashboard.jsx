@@ -126,7 +126,11 @@ const AdminDashboard = () => {
       setAllUsers(prev => prev.filter(u => u.id !== userId));
       toast.success('تم حذف المستخدم بنجاح');
     } catch (error) {
-      toast.error(error.response?.data?.error || 'فشل في عملية الحذف');
+      console.error('Delete User Error:', error.response || error);
+      const msg = error.response?.data?.error || error.response?.data?.detail || `Error ${error.response?.status}: فشل في الخادم`;
+      toast.error(msg);
+      // Fallback native alert if toast fails to display properly
+      alert(`تفاصيل الخطأ: ${msg}`);
     }
   };
 
