@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from .models import Order, Transaction
 from .serializers import OrderSerializer, OrderCreateSerializer, TransactionSerializer, PaymentAccountSerializer
 from .payment_config import PaymentAccount
-from core.permissions import IsAdmin
+from core.permissions import IsAdmin, IsAdminOrVendor
 from django.utils import timezone
 
 
@@ -14,16 +14,20 @@ class OrderViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
+        # تحسين الأداء: prefetch_related لتجنب N+1 queries عند جلب العناصر
+        base_qs = Order.objects.select_related('user').prefetch_related(
+            'items', 'items__vendor', 'items__product'
+        )
         if user.role == 'admin':
-            return Order.objects.all()
+            return base_qs.all()
         if user.role == 'vendor':
             from vendors.models import Vendor
             try:
                 vendor = Vendor.objects.get(user=user)
-                return Order.objects.filter(items__vendor=vendor).distinct()
+                return base_qs.filter(items__vendor=vendor).distinct()
             except Vendor.DoesNotExist:
                 return Order.objects.none()
-        return Order.objects.filter(user=user)
+        return base_qs.filter(user=user)
 
     def get_serializer_class(self):
         if self.action == 'create':
@@ -38,16 +42,32 @@ class OrderViewSet(viewsets.ModelViewSet):
         except Exception:
             pass
 
-    @action(detail=True, methods=['patch'], url_path='update-status')
+    @action(detail=True, methods=['patch'], url_path='update-status',
+            permission_classes=[IsAdminOrVendor])  # إضافة صلاحية — فقط admin و vendor
     def update_status(self, request, pk=None):
         """Update order status (admin/vendor only)."""
         order = self.get_object()
         new_status = request.data.get('status')
+        user = request.user
+        
+        # الـ vendor لا يستطيع تغيير حالة طلب ليس له
+        if user.role == 'vendor':
+            from vendors.models import Vendor
+            try:
+                vendor = Vendor.objects.get(user=user)
+                if not order.items.filter(vendor=vendor).exists():
+                    return Response({'error': 'لا تملك صلاحية تعديل هذا الطلب'}, status=status.HTTP_403_FORBIDDEN)
+                # الـ vendor يستطيع فقط تحديث ل processing و shipped
+                if new_status not in ('processing', 'shipped'):
+                    return Response({'error': 'غير مصرح لك بتغيير الحالة لهذه القيمة'}, status=status.HTTP_403_FORBIDDEN)
+            except Vendor.DoesNotExist:
+                return Response({'error': 'لا يوجد متجر مرتبط بحسابك'}, status=status.HTTP_403_FORBIDDEN)
+        
         valid = dict(Order.STATUS_CHOICES).keys()
         if new_status not in valid:
             return Response({'error': 'حالة غير صالحة'}, status=status.HTTP_400_BAD_REQUEST)
         order.status = new_status
-        order.save(update_fields=['status'])
+        order.save(update_fields=['status', 'updated_at'])
         try:
             from notifications.services import notify_order_status_changed
             notify_order_status_changed(order)

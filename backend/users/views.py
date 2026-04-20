@@ -1,4 +1,5 @@
 import traceback
+import logging
 from rest_framework import generics, permissions, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
@@ -9,6 +10,8 @@ from django.db.models import Q, Sum, Count
 from .models import User
 from .serializers import UserSerializer, RegisterSerializer, ProfileUpdateSerializer
 from core.permissions import IsAdmin
+
+logger = logging.getLogger(__name__)
 
 # Import our helper service
 try:
@@ -26,12 +29,15 @@ def _issue_tokens(user):
         'access':  str(refresh.access_token),
         'refresh': str(refresh),
         'user': {
-            'id':       user.id,
-            'username': user.username,
-            'email':    user.email,
-            'role':     user.role,
-            'phone':    user.phone,
-            'city':     user.city,
+            'id':         user.id,
+            'username':   user.username,
+            'name':       user.get_full_name() or user.first_name or user.username,
+            'first_name': user.first_name,
+            'email':      user.email,
+            'role':       user.role,
+            'phone':      user.phone,
+            'city':       user.city,
+            'avatar':     user.avatar.url if user.avatar else None,
         }
     }
 
@@ -64,21 +70,21 @@ class PhoneLoginView(APIView):
             if normalized:
                 user = User.objects.filter(phone=normalized).first()
             if not user:
-                # Try search by directly provided phone or username
                 user = User.objects.filter(username=phone).first() or User.objects.filter(username=normalized).first()
             
-            if user is None:
-                return Response({'error': 'رقم الجوال أو اسم المستخدم غير مسجّل'}, status=status.HTTP_401_UNAUTHORIZED)
-            if not user.check_password(password):
-                return Response({'error': 'كلمة المرور غير صحيحة'}, status=status.HTTP_401_UNAUTHORIZED)
+            # رسالة موحّدة لمنع هجمات تعداد المستخدمين (User Enumeration)
+            AUTH_ERROR = 'بيانات الدخول غير صحيحة'
+            
+            if user is None or not user.check_password(password):
+                return Response({'error': AUTH_ERROR}, status=status.HTTP_401_UNAUTHORIZED)
+            
             if not user.is_active or not user.is_active_account:
                 return Response({'error': 'الحساب موقوف'}, status=status.HTTP_403_FORBIDDEN)
             
             return Response(_issue_tokens(user), status=status.HTTP_200_OK)
         except Exception as e:
-            error_trace = traceback.format_exc()
-            print(error_trace)
-            return Response({'error': 'حدث خطأ في السيرفر', 'details': str(e), 'trace': error_trace}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            logger.error(f'PhoneLoginView error: {traceback.format_exc()}')
+            return Response({'error': 'حدث خطأ في السيرفر'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class SendWhatsAppOTPView(APIView):
     permission_classes = (permissions.AllowAny,)
@@ -119,6 +125,11 @@ class PhoneRegisterView(APIView):
                 phone=normalized,
                 role=role
             )
+            try:
+                from notifications.services import notify_admin_new_user
+                notify_admin_new_user(user)
+            except Exception:
+                pass
             return Response(_issue_tokens(user), status=status.HTTP_201_CREATED)
         except Exception as e:
             return Response({'error': str(e)}, status=500)
@@ -181,10 +192,28 @@ def admin_stats(request):
 @permission_classes([IsAdmin])
 def admin_users(request):
     try:
-        users = User.objects.all().order_by('-date_joined')
-        serializer = UserSerializer(users, many=True)
-        return Response(serializer.data)
+        from django.core.paginator import Paginator
+        search = request.query_params.get('search', '')
+        role   = request.query_params.get('role', '')
+        page   = request.query_params.get('page', 1)
+        
+        qs = User.objects.all().order_by('-date_joined')
+        if search:
+            qs = qs.filter(Q(username__icontains=search) | Q(phone__icontains=search))
+        if role:
+            qs = qs.filter(role=role)
+        
+        paginator = Paginator(qs, 30)  # 30 مستخدم لكل صفحة
+        page_obj = paginator.get_page(page)
+        serializer = UserSerializer(page_obj.object_list, many=True)
+        return Response({
+            'results':  serializer.data,
+            'count':    paginator.count,
+            'pages':    paginator.num_pages,
+            'page':     int(page),
+        })
     except Exception as e:
+        logger.error(f'admin_users error: {e}')
         return Response({'error': str(e)}, status=500)
 
 @api_view(['DELETE'])

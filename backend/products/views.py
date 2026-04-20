@@ -27,7 +27,10 @@ class ProductViewSet(viewsets.ModelViewSet):
     ordering = ['-created_at']
 
     def get_queryset(self):
-        qs = Product.objects.select_related('category', 'vendor').all()
+        # select_related لتجنب N+1 queries للحقول المنتمية للجدول الأخرى
+        qs = Product.objects.select_related('category', 'vendor').prefetch_related(
+            'gallery_images', 'variants'
+        )
         # Public sees only active products
         if self.action == 'list':
             user = self.request.user
@@ -69,12 +72,19 @@ class ProductViewSet(viewsets.ModelViewSet):
         except Vendor.DoesNotExist:
             from rest_framework.exceptions import PermissionDenied
             raise PermissionDenied("يجب أن تمتلك متجراً لإضافة منتجات")
-        serializer.save(vendor=vendor, status='pending')
+        product = serializer.save(vendor=vendor, status='pending')
+        try:
+            from notifications.services import notify_admin_new_product
+            notify_admin_new_product(product)
+        except Exception:
+            pass
 
     @action(detail=False, methods=['get'], url_path='featured')
     def featured(self, request):
         """Get featured/best-selling products."""
-        products = Product.objects.filter(status='active').order_by('-sold_count', '-rating')[:8]
+        products = Product.objects.filter(status='active').select_related(
+            'category', 'vendor'
+        ).order_by('-sold_count', '-rating')[:12]  # زيادة لـ 12 لعرض أفضل
         serializer = self.get_serializer(products, many=True)
         return Response(serializer.data)
 
@@ -86,7 +96,9 @@ class ProductViewSet(viewsets.ModelViewSet):
         from vendors.models import Vendor
         try:
             vendor = Vendor.objects.get(user=request.user)
-            products = Product.objects.filter(vendor=vendor)
+            products = Product.objects.filter(vendor=vendor).select_related(
+                'category'
+            ).prefetch_related('gallery_images', 'variants').order_by('-created_at')
             serializer = self.get_serializer(products, many=True)
             return Response(serializer.data)
         except Vendor.DoesNotExist:
@@ -114,7 +126,9 @@ class ProductViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'], url_path='pending', permission_classes=[IsAdmin])
     def pending_products(self, request):
         """Admin views pending products."""
-        qs = Product.objects.filter(status='pending').select_related('category', 'vendor')
+        qs = Product.objects.filter(status='pending').select_related(
+            'category', 'vendor'
+        ).order_by('-created_at')
         serializer = self.get_serializer(qs, many=True)
         return Response(serializer.data)
 

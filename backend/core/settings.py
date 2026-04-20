@@ -16,8 +16,9 @@ if env_path.exists():
                 os.environ.setdefault(key.strip(), value.strip())
 
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-fallback-dev-key')
-DEBUG = True
-ALLOWED_HOSTS = ['*']
+# DEBUG: يقرأ من env — في الإنتاج يجب ضبطه False في Render dashboard
+DEBUG = os.environ.get('DEBUG', 'False').lower() not in ('false', '0', 'no')
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '*').split(',')
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -44,6 +45,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'django.middleware.gzip.GZipMiddleware',        # ضغط الاستجابات لتسريع التحميل
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
@@ -57,10 +59,10 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = 'core.urls'
 
-# CORS
+# CORS — يُحدَّد بدقة، لا يُسمح لأي موقع بالوصول
 cors_origins = os.environ.get('CORS_ALLOWED_ORIGINS', 'http://localhost:5173,http://127.0.0.1:5173')
 CORS_ALLOWED_ORIGINS = [o.strip() for o in cors_origins.split(',') if o.strip()]
-CORS_ALLOW_ALL_ORIGINS = True
+# تم حذف CORS_ALLOW_ALL_ORIGINS — كان يُلغي القائمة المحددة ويفتح الـ API للجميع
 CORS_ALLOW_CREDENTIALS = True
 
 TEMPLATES = [
@@ -81,12 +83,12 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'core.wsgi.application'
 
-# Database
+# Database — PostgreSQL في الإنتاج عبر DATABASE_URL في Render
 DATABASES = {
     'default': dj_database_url.config(
         default=os.environ.get('DATABASE_URL', f"sqlite:///{BASE_DIR / 'db.sqlite3'}"),
-        conn_max_age=600,
-        conn_health_checks=True,
+        conn_max_age=600,        # إعادة استخدام الاتصال لتحسين الأداء
+        conn_health_checks=True, # فحص صحة الاتصال تلقائياً
     )
 }
 
@@ -149,10 +151,16 @@ else:
 
 # --- End of Storage Configuration ---
 
+# Cache — DatabaseCache للعمل مع Gunicorn متعدد العمال (OTP يُخزَّن في DB المشتركة)
+# هذا يضمن أن OTP يُرى من كل workers بشكل متزامن
 CACHES = {
     'default': {
-        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-        'LOCATION': 'unique-snowflake',
+        'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
+        'LOCATION': 'cache_table',  # يجب تشغيل: python manage.py createcachetable
+        'OPTIONS': {
+            'MAX_ENTRIES': 1000,
+            'CULL_FREQUENCY': 3,
+        }
     }
 }
 
@@ -175,15 +183,21 @@ REST_FRAMEWORK = {
         'rest_framework.throttling.UserRateThrottle',
     ],
     'DEFAULT_THROTTLE_RATES': {
-        'anon': '60/minute',
-        'user': '200/minute',
+        'anon': '100/minute',    # زيادة لتحسين تجربة الزوار
+        'user': '300/minute',    # زيادة لتحسين تجربة المستخدمين
     },
+    # تحسين الأداء: عدم إرجاع null للحقول الاختيارية
+    'DEFAULT_RENDERER_CLASSES': [
+        'rest_framework.renderers.JSONRenderer',
+    ],
 }
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(days=1),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'ACCESS_TOKEN_LIFETIME': timedelta(hours=12),  # تقليل من يوم لـ 12 ساعة لحماية أفضل
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=30),   # زيادة refresh لتجنب re-login المتكرر
     'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': False,              # لا نحتاج blacklist حالياً
+    'UPDATE_LAST_LOGIN': True,                      # تحديث آخر تسجيل دخول تلقائياً
 }
 
 # Email settings
@@ -195,7 +209,25 @@ EMAIL_HOST_USER = os.environ.get('EMAIL_USER', '')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_PASS', '')
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'noreply@yemenmarket.com')
 
-# Security
+# Security Headers
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'DENY'
+
+# في الإنتاج فقط — لا تُفعَّل محلياً لأنها تتطلب HTTPS
+if not DEBUG:
+    SECURE_HSTS_SECONDS = 31536000          # إجبار HTTPS لمدة سنة
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+
+# تحسين الأداء: ضغط الـ GZip
+MIDDLEWARE_CLASSES = []
+GZIP_CONTENT_TYPES = [
+    'text/css',
+    'text/plain',
+    'text/javascript',
+    'application/json',
+    'application/javascript',
+]

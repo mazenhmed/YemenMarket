@@ -34,6 +34,32 @@ def notify_admins(notification_type, title, message, link=''):
     Notification.objects.bulk_create(notifications)
 
 
+def notify_admin_new_user(user):
+    """Notify admin about new user registration."""
+    notify_admins('system', '👤 تسجيل مستخدم جديد', f'تم اشتراك مستخدم جديد ({user.username}) في المنصة بدور ({user.get_role_display()})', '/admin')
+
+
+def notify_admin_new_store(vendor):
+    """Notify admin about new store request."""
+    notify_admins('system', '🏪 طلب فتح متجر جديد', f'طلب فتح متجر باسم "{vendor.store_name}" يحتاج إلى المراجعة.', '/admin')
+
+
+def notify_admin_new_product(product):
+    """Notify admin about new product uploaded."""
+    notify_admins('system', '🛍️ منتج جديد بانتظار المراجعة', f'قام متجر "{product.vendor.store_name}" برفع منتج جديد "{product.name}".', '/admin')
+
+
+def notify_vendor_transaction(transaction):
+    """Notify vendor about a payout/commission transaction log."""
+    amount_str = f"{transaction.vendor_amount:,.0f}"
+    notify_user(
+        transaction.vendor.user, 'system',
+        '💵 تسوية مالية جديدة',
+        f'تم تسجيل عملية ({transaction.get_transaction_type_display()}) بقيمة {amount_str} ريال مرتبطة بالطلب #{transaction.order.order_number}',
+        '/vendor/dashboard'
+    )
+
+
 def notify_order_created(order):
     """Notify customer + vendors + admins about new order."""
     # Notify customer
@@ -85,12 +111,20 @@ def notify_order_status_changed(order):
 
 
 def notify_payment_confirmed(order):
-    """Notify customer that payment has been confirmed."""
+    """Notify customer that payment has been confirmed, and notify admins for tracking."""
+    # Notify Customer
     notify_user(
         order.user, 'order_paid',
         '💰 تم تأكيد الدفع',
         f'تم تأكيد استلام الدفع للطلب رقم {order.order_number}',
         '/profile'
+    )
+    # Notify Admins
+    notify_admins(
+        'order_paid',
+        f'💸 تأكيد دفعة للطلب #{order.order_number}',
+        f'تم بنجاح تأكيد استلام الدفعة لطلب العميل {order.full_name}. الأرباح ظاهرة الآن في السجلات.',
+        '/admin'
     )
 
 

@@ -153,12 +153,24 @@ class OrderCreateSerializer(serializers.ModelSerializer):
 
         # Create transactions for each vendor
         for vendor, amount in vendor_totals.items():
-            Transaction.objects.create(
+            # استخدام نسبة عمولة كل متجر بدلاً من 5% الثابتة
+            commission_rate = getattr(vendor, 'commission_rate', Decimal('5.00')) / Decimal('100')
+            commission_amount = amount * commission_rate
+            vendor_net = amount - commission_amount
+            tx = Transaction(
                 order=order,
                 vendor=vendor,
                 transaction_type='sale',
-                amount=amount
+                amount=amount,
+                commission=commission_amount,
+                vendor_amount=vendor_net,
             )
+            tx.save()
+            try:
+                from notifications.services import notify_vendor_transaction
+                notify_vendor_transaction(tx)
+            except Exception:
+                pass
 
         return order
 

@@ -81,7 +81,7 @@ class Order(models.Model):
             now = timezone.now()
             short_id = uuid.uuid4().hex[:5].upper()
             self.order_number = f"YM-{now.strftime('%y%m%d')}-{short_id}"
-        # Auto-calculate commission at 5%
+        # عمولة ثابتة 5% — للطلب ككل (تُحسب لكل vendor في Transaction)
         self.platform_commission = self.subtotal * Decimal('5') / Decimal('100')
         self.total_price = max(self.subtotal - self.discount_amount, Decimal('0.00')) + self.shipping_cost
         super().save(*args, **kwargs)

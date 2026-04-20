@@ -12,7 +12,8 @@ class UserSerializer(serializers.ModelSerializer):
 class RegisterSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ('id', 'username', 'email', 'password', 'role', 'phone', 'city')
+        fields = ('id', 'username', 'email', 'password', 'phone', 'city')
+        # تم حذف 'role' من الحقول — أي مستخدم كان يستطيع التسجيل بـ role='admin' مباشرة!
         extra_kwargs = {'password': {'write_only': True}}
 
     def create(self, validated_data):
@@ -20,7 +21,7 @@ class RegisterSerializer(serializers.ModelSerializer):
             username=validated_data['username'],
             email=validated_data.get('email', ''),
             password=validated_data['password'],
-            role=validated_data.get('role', 'customer'),
+            role='customer',   # دائماً customer — الترقية يتم يدوياً من اللوحة
             phone=validated_data.get('phone', ''),
             city=validated_data.get('city', ''),
         )
@@ -33,12 +34,15 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         data = super().validate(attrs)
         user = self.user
         data['user'] = {
-            'id': user.id,
-            'username': user.username,
-            'email': user.email,
-            'role': user.role,
-            'phone': user.phone,
-            'city': user.city,
+            'id':         user.id,
+            'username':   user.username,
+            'name':       user.get_full_name() or user.first_name or user.username,
+            'first_name': user.first_name,
+            'email':      user.email,
+            'role':       user.role,
+            'phone':      user.phone,
+            'city':       user.city,
+            'avatar':     user.avatar.url if user.avatar else None,
         }
         return data
 

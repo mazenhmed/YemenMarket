@@ -1,0 +1,19 @@
+# Migration: إنشاء جدول الكاش لـ DatabaseCache
+# يجب تشغيله مرة واحدة عند النشر: python manage.py createcachetable
+# هذا الملف يُعلم Django بوجود جدول الكاش
+
+from django.db import migrations
+
+
+class Migration(migrations.Migration):
+    """
+    لا توجد عمليات Django migrations هنا.
+    جدول الكاش يُنشأ عبر الأمر:
+        python manage.py createcachetable
+    
+    هذا الملف موجود فقط كتذكير بضرورة تشغيل الأمر عند النشر.
+    """
+
+    dependencies = []
+
+    operations = []

@@ -24,7 +24,7 @@ class VendorViewSet(viewsets.ModelViewSet):
         return [permissions.IsAuthenticated()]
 
     def get_queryset(self):
-        qs = Vendor.objects.all().order_by('-created_at')
+        qs = Vendor.objects.select_related('user').order_by('-created_at')
         # Public only sees approved vendors
         if not self.request.user.is_authenticated or self.request.user.role != 'admin':
             if self.action == 'list':
@@ -32,7 +32,12 @@ class VendorViewSet(viewsets.ModelViewSet):
         return qs
 
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        vendor = serializer.save(user=self.request.user)
+        try:
+            from notifications.services import notify_admin_new_store
+            notify_admin_new_store(vendor)
+        except Exception:
+            pass
 
     @action(detail=True, methods=['patch'], url_path='update-status', permission_classes=[IsAdmin])
     def update_status(self, request, pk=None):
