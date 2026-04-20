@@ -248,8 +248,12 @@ const AdminDashboard = () => {
                 <button className="btn btn-outline btn-sm" onClick={() => setSelectedStore(null)} style={{ marginBottom: '1.5rem' }}>← العودة للمتاجر</button>
                 <div className="store-detail-panel">
                   <div className="sdp-header">
-                    <div className="sdp-avatar" style={{ background: `linear-gradient(135deg, ${colors[Math.abs(selectedStore.id - 1) % colors.length]}, ${colors[selectedStore.id % colors.length]})` }}>
-                      {(selectedStore.store_name || 'م')[0]}
+                    <div className="sdp-avatar" style={{ background: `linear-gradient(135deg, ${colors[Math.abs(selectedStore.id - 1) % colors.length]}, ${colors[selectedStore.id % colors.length]})`, overflow: 'hidden' }}>
+                      {selectedStore.logo ? (
+                        <img src={selectedStore.logo} alt={selectedStore.store_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      ) : (
+                        (selectedStore.store_name || 'م')[0]
+                      )}
                     </div>
                     <div className="sdp-info">
                       <h2>{selectedStore.store_name} {selectedStore.is_verified && '✅'}</h2>
@@ -287,8 +291,12 @@ const AdminDashboard = () => {
                     const s = getStatusSt(store.status);
                     return (
                       <div key={store.id} className="admin-vendor-card">
-                        <div className="vendor-card-avatar" style={{ background: `linear-gradient(135deg, ${colors[i % colors.length]}, ${colors[(i + 1) % colors.length]})` }}>
-                          {(store.store_name || 'م')[0]}
+                        <div className="vendor-card-avatar" style={{ background: `linear-gradient(135deg, ${colors[i % colors.length]}, ${colors[(i + 1) % colors.length]})`, overflow: 'hidden' }}>
+                          {store.logo ? (
+                            <img src={store.logo} alt={store.store_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          ) : (
+                            (store.store_name || 'م')[0]
+                          )}
                         </div>
                         <div className="vendor-card-info">
                           <div className="vendor-card-name">{store.store_name} {store.is_verified && '✅'}</div>
@@ -556,11 +564,11 @@ const AdminDashboard = () => {
                 <div className="form-row" style={{ marginTop: '1rem' }}>
                   <div className="form-group">
                     <label>الاسم (عربي) *</label>
-                    <input type="text" value={editingCategory.name_ar || editingCategory.name} onChange={e => setEditingCategory({ ...editingCategory, name_ar: e.target.value, name: editingCategory.isNew ? e.target.value : editingCategory.name })} />
+                    <input type="text" value={editingCategory.name_ar || ''} onChange={e => setEditingCategory({ ...editingCategory, name_ar: e.target.value })} />
                   </div>
                   <div className="form-group">
-                    <label>الاسم (إنجليزي/اختياري)</label>
-                    <input type="text" value={editingCategory.name} onChange={e => setEditingCategory({ ...editingCategory, name: e.target.value })} />
+                    <label>الاسم (إنجليزي) *</label>
+                    <input type="text" value={editingCategory.name || ''} onChange={e => setEditingCategory({ ...editingCategory, name: e.target.value })} />
                   </div>
                   <div className="form-group">
                     <label>أيقونة (Emoji)</label>
@@ -574,25 +582,35 @@ const AdminDashboard = () => {
                 <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
                   <button className="btn btn-primary" onClick={async () => {
                     try {
+                      if (!editingCategory.name_ar && !editingCategory.name) {
+                        toast.error('يرجى إدخال اسم القسم');
+                        return;
+                      }
+                      
                       const payload = new FormData();
                       payload.append('name', editingCategory.name || editingCategory.name_ar);
-                      payload.append('name_ar', editingCategory.name_ar);
-                      payload.append('icon', editingCategory.icon || '');
+                      if (editingCategory.name_ar) payload.append('name_ar', editingCategory.name_ar);
+                      if (editingCategory.icon) payload.append('icon', editingCategory.icon);
                       if (editingCategory.imageFile) {
                         payload.append('image', editingCategory.imageFile);
                       }
 
                       if (editingCategory.isNew) {
                         const res = await createCategory(payload);
-                        setCategories([...categories, res.data]);
+                        // Add newly created category to array
+                        setCategories(prev => [...prev, res.data]);
                         toast.success('تمت الإضافة بنجاح');
                       } else {
                         const res = await updateCategory(editingCategory.id, payload);
-                        setCategories(categories.map(c => c.id === editingCategory.id ? res.data : c));
+                        // Replace updated category in array
+                        setCategories(prev => prev.map(c => c.id === editingCategory.id ? res.data : c));
                         toast.success('تم التعديل بنجاح');
                       }
                       setEditingCategory(null);
-                    } catch (e) { toast.error('فشل حفظ القسم'); }
+                    } catch (e) { 
+                      console.error('Save category error:', e.response?.data || e);
+                      toast.error('فشل حفظ القسم. راجع البيانات المدخلة.'); 
+                    }
                   }}>حفظ</button>
                   <button className="btn btn-outline" onClick={() => setEditingCategory(null)}>إلغاء</button>
                 </div>
@@ -600,11 +618,17 @@ const AdminDashboard = () => {
             )}
             <div className="dashboard-table">
               <div className="table-header" style={{ gridTemplateColumns: '1fr 2fr 1fr 1fr 1fr' }}>
-                <span>الأيقونة</span><span>القسم</span><span>الاسم الإنجليزي</span><span>المنتجات</span><span>إجراء</span>
+                <span>صورة/أيقونة</span><span>القسم</span><span>الاسم الإنجليزي</span><span>المنتجات</span><span>إجراء</span>
               </div>
               {categories.map(cat => (
                 <div key={cat.id} className="table-row" style={{ gridTemplateColumns: '1fr 2fr 1fr 1fr 1fr', alignItems: 'center' }}>
-                  <span style={{ fontSize: '1.5rem' }}>{cat.icon || '📁'}</span>
+                  <span style={{ fontSize: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    {cat.image ? (
+                      <img src={cat.image} alt={cat.name_ar} style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '6px' }} />
+                    ) : (
+                      cat.icon || '📁'
+                    )}
+                  </span>
                   <span style={{ fontWeight: 600 }}>{cat.name_ar || cat.name}</span>
                   <span style={{ color: 'var(--text-muted)' }}>{cat.name}</span>
                   <span style={{ color: '#059669', fontWeight: 'bold' }}>{cat.product_count || 0} منتج</span>
@@ -614,7 +638,7 @@ const AdminDashboard = () => {
                       if (window.confirm('هل أنت متأكد من حذف هذا القسم؟')) {
                         try {
                           await deleteCategory(cat.id);
-                          setCategories(categories.filter(c => c.id !== cat.id));
+                          setCategories(prev => prev.filter(c => c.id !== cat.id));
                           toast.success('تم حذف القسم');
                         } catch (e) { toast.error('فشل في عملية الحذف'); }
                       }
