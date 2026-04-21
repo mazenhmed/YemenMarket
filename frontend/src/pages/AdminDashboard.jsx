@@ -4,9 +4,9 @@ import { useToast } from '../context/ToastContext';
 import {
   getAdminStats, getAdminUsers, getStores, getOrders,
   getProducts, updateOrderStatus, updateStore, getTransactions,
-  confirmPayment, getPaymentAccounts, updatePaymentAccount,
+  confirmPayment, getPaymentAccounts, updatePaymentAccount, createPaymentAccount, deletePaymentAccount,
   getCategories, createCategory, updateCategory, deleteCategory,
-  deleteAdminUser
+  deleteAdminUser, getMediaUrl
 } from '../services/api';
 import { Link } from 'react-router-dom';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -33,6 +33,9 @@ const AdminDashboard = () => {
   const [allUsers, setAllUsers] = useState([]);
   const [allTransactions, setAllTransactions] = useState([]);
   const [paymentAccounts, setPaymentAccounts] = useState([]);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [newPaymentForm, setNewPaymentForm] = useState({ provider: 'floosak', account_name: '', account_number: '', bank_name: '', instructions: '' });
+  const [savingPayment, setSavingPayment] = useState(false);
   const [categories, setCategories] = useState([]);
   const [editingCategory, setEditingCategory] = useState(null);
 
@@ -122,6 +125,17 @@ const AdminDashboard = () => {
       toast.success('تم تحديث حساب الدفع');
     } catch {
       toast.error('فشل تحديث الحساب');
+    }
+  };
+
+  const handleDeletePaymentAccount = async (id) => {
+    if (!window.confirm('هل أنت متأكد من حذف هذا الحساب؟')) return;
+    try {
+      await deletePaymentAccount(id);
+      setPaymentAccounts(prev => prev.filter(a => a.id !== id));
+      toast.success('تم حذف حساب الدفع بنجاح');
+    } catch (error) {
+      toast.error('فشل حذف حساب الدفع');
     }
   };
 
@@ -250,7 +264,7 @@ const AdminDashboard = () => {
                   <div className="sdp-header">
                     <div className="sdp-avatar" style={{ background: `linear-gradient(135deg, ${colors[Math.abs(selectedStore.id - 1) % colors.length]}, ${colors[selectedStore.id % colors.length]})`, overflow: 'hidden' }}>
                       {selectedStore.logo ? (
-                        <img src={selectedStore.logo} alt={selectedStore.store_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        <img src={getMediaUrl(selectedStore.logo)} alt={selectedStore.store_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                       ) : (
                         (selectedStore.store_name || 'م')[0]
                       )}
@@ -265,7 +279,7 @@ const AdminDashboard = () => {
                       </div>
                       {selectedStore.id_document && (
                         <div style={{ marginTop: '1rem' }}>
-                          <a href={selectedStore.id_document} target="_blank" rel="noreferrer" className="btn btn-outline btn-sm">📄 عرض وثيقة الهوية المرفقة</a>
+                          <a href={getMediaUrl(selectedStore.id_document)} target="_blank" rel="noreferrer" className="btn btn-outline btn-sm">📄 عرض وثيقة الهوية المرفقة</a>
                         </div>
                       )}
                     </div>
@@ -293,7 +307,7 @@ const AdminDashboard = () => {
                       <div key={store.id} className="admin-vendor-card">
                         <div className="vendor-card-avatar" style={{ background: `linear-gradient(135deg, ${colors[i % colors.length]}, ${colors[(i + 1) % colors.length]})`, overflow: 'hidden' }}>
                           {store.logo ? (
-                            <img src={store.logo} alt={store.store_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            <img src={getMediaUrl(store.logo)} alt={store.store_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                           ) : (
                             (store.store_name || 'م')[0]
                           )}
@@ -477,16 +491,20 @@ const AdminDashboard = () => {
         {/* ── Tab: Payment Accounts ── */}
         {activeTab === 'payment-accounts' && (
           <div className="admin-section">
-            <div className="admin-section-header" style={{ marginBottom: '1.5rem' }}>
-              <h3>💳 حسابات الدفع — أرقام حسابات المنصة</h3>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>هذه الأرقام تظهر للعملاء عند الدفع. يمكنك تعديلها في أي وقت.</p>
+            <div className="admin-section-header" style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+              <div>
+                <h3>💳 حسابات الدفع — أرقام حسابات المنصة</h3>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '0.3rem' }}>هذه الأرقام تظهر للعملاء وللمتاجر لتحويل النسبة. يمكنك تعديلها في أي وقت.</p>
+              </div>
+              <button className="btn btn-primary" onClick={() => setShowPaymentModal(true)}>➕ إضافة حساب دفع جديد</button>
             </div>
             {paymentAccounts.length === 0 ? (
               <div className="empty-state"><span className="empty-icon">💳</span><h3>لا توجد حسابات دفع</h3></div>
             ) : (
               <div className="payment-accounts-grid">
                 {paymentAccounts.map(acc => (
-                  <div key={acc.id} className="payment-account-admin-card">
+                  <div key={acc.id} className="payment-account-admin-card" style={{ position: 'relative' }}>
+                    <button className="action-btn danger" style={{ position: 'absolute', top: '10px', left: '10px', padding: '0.3rem 0.5rem', fontSize: '0.8rem', zIndex: 10 }} onClick={() => handleDeletePaymentAccount(acc.id)} title="حذف الحساب">🗑️</button>
                     <div className="pac-header">
                       <span className="pac-icon">{acc.icon}</span>
                       <h4>{acc.provider_display || acc.provider}</h4>
@@ -651,6 +669,65 @@ const AdminDashboard = () => {
           </div>
         )}
       </div>
+      
+      {/* Modal for adding a new payment account */}
+      {showPaymentModal && (
+        <div className="modal-overlay" onClick={() => setShowPaymentModal(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '400px' }}>
+            <div className="modal-header">
+              <h2>إضافة حساب دفع جديد</h2>
+              <button className="modal-close" onClick={() => setShowPaymentModal(false)}>✕</button>
+            </div>
+            <form className="auth-form" onSubmit={async (e) => {
+              e.preventDefault();
+              if (!newPaymentForm.account_number || !newPaymentForm.account_name) return toast.error('يرجى تعبئة الحقول المطلوبة');
+              setSavingPayment(true);
+              try {
+                const res = await createPaymentAccount(newPaymentForm);
+                setPaymentAccounts([...paymentAccounts, res.data]);
+                toast.success('تم إضافة حساب الدفع بنجاح ✅');
+                setShowPaymentModal(false);
+                setNewPaymentForm({ provider: 'floosak', account_name: '', account_number: '', bank_name: '', instructions: '' });
+              } catch (err) {
+                toast.error(err.response?.data?.provider?.[0] || 'فشل إضافة الحساب (قد يكون موجوداً بالفعل لهذه الطريقة)');
+              }
+              setSavingPayment(false);
+            }}>
+              <div className="form-group">
+                <label>نوع خدمة الدفع</label>
+                <select value={newPaymentForm.provider} onChange={e => setNewPaymentForm({...newPaymentForm, provider: e.target.value})}>
+                  <option value="floosak">📱 فلوسك</option>
+                  <option value="jawali">📲 جوالي</option>
+                  <option value="kuraimi">🏦 كريمي</option>
+                  <option value="transfer">🏛️ تحويل بنكي</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label>اسم صاحب الحساب</label>
+                <input type="text" placeholder="مثال: مؤسسة يمن ماركت" value={newPaymentForm.account_name} onChange={e => setNewPaymentForm({...newPaymentForm, account_name: e.target.value})} required />
+              </div>
+              <div className="form-group">
+                <label>رقم الحساب أو المحفظة</label>
+                <input type="text" placeholder="رقم الحساب..." value={newPaymentForm.account_number} onChange={e => setNewPaymentForm({...newPaymentForm, account_number: e.target.value})} required dir="ltr" />
+              </div>
+              {newPaymentForm.provider === 'transfer' && (
+                <div className="form-group">
+                  <label>اسم البنك</label>
+                  <input type="text" placeholder="مثال: بنك اليمن والخليج" value={newPaymentForm.bank_name} onChange={e => setNewPaymentForm({...newPaymentForm, bank_name: e.target.value})} />
+                </div>
+              )}
+              <div className="form-group">
+                <label>تعليمات الدفع (اختياري)</label>
+                <textarea placeholder="أضف تعليمات إضافية تظهر للعملاء والمتاجر" value={newPaymentForm.instructions} onChange={e => setNewPaymentForm({...newPaymentForm, instructions: e.target.value})} rows="2"></textarea>
+              </div>
+              <button type="submit" className="btn btn-primary btn-full" disabled={savingPayment}>
+                {savingPayment ? 'جارِ الحفظ...' : '💾 إضافة الحساب'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { getStores } from '../services/api';
+import { getStores, getMediaUrl } from '../services/api';
 import LoadingSpinner from '../components/LoadingSpinner';
 
 const FALLBACK_STORES = [
@@ -62,7 +62,7 @@ const Stores = () => {
             <Link to={`/store/${store.id}`} key={store.id} className="store-page-card">
               <div className="store-page-avatar" style={{ background: `linear-gradient(135deg, ${colors[i % colors.length]}, ${colors[(i + 1) % colors.length]})`, overflow: 'hidden' }}>
                 {store.logo ? (
-                  <img src={store.logo} alt={store.store_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <img src={getMediaUrl(store.logo)} alt={store.store_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 ) : (
                   (store.store_name || 'م')[0]
                 )}

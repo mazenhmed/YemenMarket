@@ -3,6 +3,7 @@ from .models import Vendor, VendorPaymentAccount
 
 class VendorSerializer(serializers.ModelSerializer):
     owner_name = serializers.ReadOnlyField(source='user.username')
+    owner_phone = serializers.ReadOnlyField(source='user.phone')
     
     class Meta:
         model = Vendor

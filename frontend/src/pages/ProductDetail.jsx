@@ -145,7 +145,7 @@ const ProductDetail = () => {
                 🛒 أضف إلى السلة
               </button>
               <a
-                href={`https://wa.me/${product.vendor_phone || '967770000000'}?text=${encodeURIComponent(`مرحباً، أريد طلب هذا المنتج:\n${product.name}\nالسعر: ${Number(product.price).toLocaleString()} ريال\nالكمية المطلوبة: ${quantity}\nرابط: ${window.location.href}`)}`}
+                href={`https://wa.me/${product.vendor_phone || '777161670'}?text=${encodeURIComponent(`مرحباً، أريد طلب هذا المنتج:\n${product.name}\nالسعر: ${Number(product.price).toLocaleString()} ريال\nالكمية المطلوبة: ${quantity}\nرابط: ${window.location.href}`)}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="btn btn-full"

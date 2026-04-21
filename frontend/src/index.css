@@ -5199,6 +5199,36 @@ button {
     grid-template-columns: 1fr !important;
     gap: 1rem;
   }
+  
+  /* Fix Store Logs & Horizontal Grids Overflow on Small Screens */
+  .stores-grid, 
+  .stores-page-grid, 
+  .products-grid, 
+  .features-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Make store avatars responsive and avoid hiding */
+  .store-card, .store-page-card {
+    padding: 1.25rem 1rem;
+    gap: 1rem;
+  }
+  
+  .store-avatar, .store-page-avatar {
+    width: 60px;
+    height: 60px;
+  }
+  
+  .store-detail-header {
+    flex-direction: column;
+    text-align: center;
+    gap: 1rem;
+  }
+  
+  .store-detail-stats {
+    justify-content: center;
+    flex-wrap: wrap;
+  }
 
   /* Navbar - Allow horizontal scrolling for links instead of squashing */
   .navbar-inner {

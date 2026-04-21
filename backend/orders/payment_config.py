@@ -56,7 +56,7 @@ DEFAULT_PAYMENT_ACCOUNTS = [
     {
         'provider': 'kuraimi',
         'account_name': 'YemenMarket',
-        'account_number': '770000003',
+        'account_number': '777161670',
         'bank_name': 'بنك الكريمي',
         'instructions': 'قم بتحويل المبلغ عبر الكريمي للصرافة إلى الرقم أعلاه ثم أدخل رقم الحوالة',
         'icon': '🏦',

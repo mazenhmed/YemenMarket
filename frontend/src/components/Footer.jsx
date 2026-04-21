@@ -45,7 +45,7 @@ const Footer = () => {
           <div className="footer-col">
             <h4>تواصل معنا</h4>
             <a href="mailto:info@yemenmarket.com">info@yemenmarket.com</a>
-            <a href="tel:+967770000000">170 161 777 967+</a>
+            <a href="tel:+777161670">170 161 777 967+</a>
             <a href="#">مارب , اليمن</a>
           </div>
         </div>

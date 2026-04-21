@@ -22,6 +22,7 @@ const Products = () => {
   const initialCat = searchParams.get('category') || 'الكل';
   const [activeCategory, setActiveCategory] = useState(initialCat);
   const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState('default');
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -77,6 +78,16 @@ const Products = () => {
     return matchCategory && matchSearch;
   });
 
+  // Apply Sorting
+  let sortedProducts = [...filtered];
+  if (sortBy === 'most_ordered') {
+    sortedProducts.sort((a, b) => (b.sold_count || 0) - (a.sold_count || 0));
+  } else if (sortBy === 'alphabetical') {
+    sortedProducts.sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+  } else if (sortBy === 'random') {
+    sortedProducts.sort(() => Math.random() - 0.5);
+  }
+
   const getIcon = (p) => {
     if (p.icon) return p.icon;
     const cat = p.category_name || '';
@@ -103,6 +114,35 @@ const Products = () => {
     toast.success('تمت الإضافة للسلة ✅');
   };
 
+  const renderProductCard = (product) => (
+    <div key={product.id} className="product-card">
+      <Link to={`/product/${product.id}`}>
+        <div className="product-image">
+          {product.image ? (
+            <img src={product.image} alt={product.name} style={{width:'100%',height:'100%',objectFit:'contain',backgroundColor:'#f8fafc'}} />
+          ) : (
+            <span className="product-image-icon">{getIcon(product)}</span>
+          )}
+          {product.is_on_sale && <span className="product-badge">خصم {product.discount_percentage}%</span>}
+          {product.is_featured && !product.is_on_sale && <span className="product-badge" style={{background:'linear-gradient(135deg, #6366f1, #8b5cf6)'}}>مميز</span>}
+        </div>
+      </Link>
+      <div className="product-info">
+        <div className="product-vendor">{product.vendor_name || 'متجر'}</div>
+        <Link to={`/product/${product.id}`}>
+          <h3 className="product-name">{product.name}</h3>
+        </Link>
+        <div className="product-meta">
+          <span className="product-price">{Number(product.price).toLocaleString()} ريال</span>
+          <span className="product-rating">⭐ {product.rating}</span>
+        </div>
+        <div className="product-actions">
+          <button className="btn btn-primary btn-sm btn-full" onClick={() => handleAddToCart(product)}>أضف للسلة</button>
+        </div>
+      </div>
+    </div>
+  );
+
   if (loading) return <div className="page-content"><LoadingSpinner text="جارِ تحميل المنتجات..." /></div>;
 
   return (
@@ -128,40 +168,49 @@ const Products = () => {
           ))}
         </div>
 
-        <div className="results-info">
+        <div className="results-info" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
           <span>عرض {filtered.length} منتج</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>فرز حسب:</span>
+            <select 
+              value={sortBy} 
+              onChange={(e) => setSortBy(e.target.value)}
+              style={{ padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid #e2e8f0', background: '#fff', outline: 'none', cursor: 'pointer', fontFamily: 'inherit' }}
+            >
+              <option value="default">الترتيب الافتراضي</option>
+              <option value="most_ordered">🔥 الأكثر طلباً</option>
+              <option value="alphabetical">🔤 أبجدي (أ - ي)</option>
+              <option value="random">🎲 ترتيب عشوائي</option>
+            </select>
+          </div>
         </div>
 
-        <div className="products-grid">
-          {filtered.map(product => (
-            <div key={product.id} className="product-card">
-              <Link to={`/product/${product.id}`}>
-                <div className="product-image">
-                  {product.image ? (
-                    <img src={product.image} alt={product.name} style={{width:'100%',height:'100%',objectFit:'contain',backgroundColor:'#f8fafc'}} />
-                  ) : (
-                    <span className="product-image-icon">{getIcon(product)}</span>
-                  )}
-                  {product.is_on_sale && <span className="product-badge">خصم {product.discount_percentage}%</span>}
-                  {product.is_featured && !product.is_on_sale && <span className="product-badge" style={{background:'linear-gradient(135deg, #6366f1, #8b5cf6)'}}>مميز</span>}
+        {activeCategory === 'الكل' && !searchQuery ? (
+          <div className="grouped-products">
+            {categories.map((cat, idx) => {
+              const catName = cat.name_ar || cat.name;
+              const catProds = sortedProducts.filter(p => (p.category_name || '').trim() === catName.trim()).slice(0, 3);
+              if (catProds.length === 0) return null;
+              return (
+                <div key={cat.id || idx} style={{ marginBottom: '3rem', padding: '1.5rem', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '2px solid #cbd5e1', paddingBottom: '0.8rem' }}>
+                    <h2 style={{ fontSize: '1.4rem', display: 'flex', alignItems: 'center', gap: '0.6rem', color: '#1e293b', margin: 0 }}>
+                      <span style={{ fontSize: '1.8rem' }}>{cat.icon || '📁'}</span> {catName}
+                    </h2>
+                    <button className="btn btn-outline btn-sm" onClick={() => setActiveCategory(catName)}>عرض المزيد ←</button>
+                  </div>
+                  <div className="products-grid">
+                    {catProds.map(renderProductCard)}
+                  </div>
                 </div>
-              </Link>
-              <div className="product-info">
-                <div className="product-vendor">{product.vendor_name || 'متجر'}</div>
-                <Link to={`/product/${product.id}`}>
-                  <h3 className="product-name">{product.name}</h3>
-                </Link>
-                <div className="product-meta">
-                  <span className="product-price">{Number(product.price).toLocaleString()} ريال</span>
-                  <span className="product-rating">⭐ {product.rating}</span>
-                </div>
-                <div className="product-actions">
-                  <button className="btn btn-primary btn-sm btn-full" onClick={() => handleAddToCart(product)}>أضف للسلة</button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="products-grid">
+            {sortedProducts.map(renderProductCard)}
+          </div>
+        )}
 
         {filtered.length === 0 && (
           <div className="empty-state">

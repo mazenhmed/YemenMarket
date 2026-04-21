@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useToast } from '../context/ToastContext';
-import { getCategories, getFeaturedProducts, getStores } from '../services/api';
+import { getCategories, getFeaturedProducts, getStores, getMediaUrl } from '../services/api';
 
 const FALLBACK_CATEGORIES = [
   { id: 1, name_ar: 'إلكترونيات', icon: '📱', product_count: 8 },
@@ -187,7 +187,7 @@ const Home = () => {
               <Link to={`/store/${store.id}`} key={store.id} className="store-card">
                 <div className="store-avatar" style={{ background: `linear-gradient(135deg, ${colors[i % colors.length]}, ${colors[(i + 1) % colors.length]})`, overflow: 'hidden' }}>
                   {store.logo ? (
-                    <img src={store.logo} alt={store.store_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <img src={getMediaUrl(store.logo)} alt={store.store_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   ) : (
                     (store.store_name || 'م')[0]
                   )}

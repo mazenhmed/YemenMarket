@@ -110,6 +110,24 @@ def notify_order_status_changed(order):
     )
 
 
+def notify_admin_order_confirmed_by_vendor(order, vendor):
+    """Notify admin when a vendor confirms their part of the order, including commission calculation."""
+    from orders.models import Transaction
+    vendor_items = order.items.filter(vendor=vendor)
+    vendor_total = sum(item.total for item in vendor_items)
+    
+    # حساب نسبة المنصة الافتراضية
+    commission_rate = 5
+    commission_amount = float(vendor_total) * (commission_rate / 100)
+    
+    notify_admins(
+        'order_status',
+        f'✅ تم تأكيد طلب من {vendor.store_name}',
+        f'قام متجر {vendor.store_name} بتأكيد الطلب رقم {order.order_number}. إجمالي الجملة: {vendor_total:,.0f} ريال، والمبلغ المستحق للمنصة كنسبة: {commission_amount:,.0f} ريال ({commission_rate}%).',
+        '/admin'
+    )
+
+
 def notify_payment_confirmed(order):
     """Notify customer that payment has been confirmed, and notify admins for tracking."""
     # Notify Customer

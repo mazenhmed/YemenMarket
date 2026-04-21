@@ -57,8 +57,8 @@ class OrderViewSet(viewsets.ModelViewSet):
                 vendor = Vendor.objects.get(user=user)
                 if not order.items.filter(vendor=vendor).exists():
                     return Response({'error': 'لا تملك صلاحية تعديل هذا الطلب'}, status=status.HTTP_403_FORBIDDEN)
-                # الـ vendor يستطيع فقط تحديث ل processing و shipped
-                if new_status not in ('processing', 'shipped'):
+                # الـ vendor يستطيع تحديث الحالة إلى التأكيد والتجهيز والشحن
+                if new_status not in ('confirmed', 'processing', 'shipped'):
                     return Response({'error': 'غير مصرح لك بتغيير الحالة لهذه القيمة'}, status=status.HTTP_403_FORBIDDEN)
             except Vendor.DoesNotExist:
                 return Response({'error': 'لا يوجد متجر مرتبط بحسابك'}, status=status.HTTP_403_FORBIDDEN)
@@ -66,13 +66,35 @@ class OrderViewSet(viewsets.ModelViewSet):
         valid = dict(Order.STATUS_CHOICES).keys()
         if new_status not in valid:
             return Response({'error': 'حالة غير صالحة'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        old_status = order.status
         order.status = new_status
         order.save(update_fields=['status', 'updated_at'])
+        
         try:
             from notifications.services import notify_order_status_changed
-            notify_order_status_changed(order)
-        except Exception:
-            pass
+            if old_status != new_status:
+                notify_order_status_changed(order)
+                
+            # إشعار الإدارة و حفظ سجل المعاملة المالية عند تأكيد الطلب
+            if new_status == 'confirmed' and user.role == 'vendor':
+                from notifications.services import notify_admin_order_confirmed_by_vendor
+                notify_admin_order_confirmed_by_vendor(order, vendor)
+                
+                # إنشاء سجل المعاملة (Transaction) لحساب النسبة في لوحة الإدارة
+                from orders.models import Transaction
+                if not Transaction.objects.filter(order=order, vendor=vendor).exists():
+                    vendor_items = order.items.filter(vendor=vendor)
+                    vendor_total = sum(item.total for item in vendor_items)
+                    Transaction.objects.create(
+                        order=order,
+                        vendor=vendor,
+                        transaction_type='sale',
+                        amount=vendor_total
+                    )
+        except Exception as e:
+            print("Status update notification error:", e)
+            
         return Response(OrderSerializer(order).data)
 
     @action(detail=True, methods=['patch'], url_path='confirm-payment', permission_classes=[IsAdmin])

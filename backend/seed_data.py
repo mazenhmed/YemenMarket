@@ -20,7 +20,7 @@ print("👤 إنشاء المستخدمين...")
 
 # ── Admin: ALWAYS force role='admin' even if account already exists ──
 admin_user, created = User.objects.get_or_create(username='admin', defaults={
-    'email': 'admin@yemenmarket.com', 'role': 'admin', 'phone': '770000001',
+    'email': 'admin@yemenmarket.com', 'role': 'admin', 'phone': '777161670',
     'city': 'صنعاء', 'is_staff': True, 'is_superuser': True
 })
 # Force-update role & permissions in case the account existed before
@@ -52,11 +52,11 @@ for vd in vendor_data:
 
 customer_users = []
 customer_data = [
-    {'username': 'customer', 'email': 'customer@email.com', 'phone': '776000001', 'city': 'صنعاء'},
-    {'username': 'khaled_ahmed', 'email': 'khaled@email.com', 'phone': '776000002', 'city': 'عدن'},
-    {'username': 'fatima_ali', 'email': 'fatima@email.com', 'phone': '776000003', 'city': 'تعز'},
-    {'username': 'omar_hassan', 'email': 'omar@email.com', 'phone': '776000004', 'city': 'حضرموت'},
-    {'username': 'reem_saeed', 'email': 'reem@email.com', 'phone': '776000005', 'city': 'إب'},
+    {'username': 'customer', 'email': 'customer@email.com', 'phone': '777161670', 'city': 'صنعاء'},
+    {'username': 'khaled_ahmed', 'email': 'khaled@email.com', 'phone': '777161670', 'city': 'عدن'},
+    {'username': 'fatima_ali', 'email': 'fatima@email.com', 'phone': '777161670', 'city': 'تعز'},
+    {'username': 'omar_hassan', 'email': 'omar@email.com', 'phone': '777161670', 'city': 'حضرموت'},
+    {'username': 'reem_saeed', 'email': 'reem@email.com', 'phone': '777161670', 'city': 'إب'},
 ]
 for cd in customer_data:
     u, created = User.objects.get_or_create(username=cd['username'], defaults={
@@ -203,12 +203,12 @@ print(f"  ✅ {ProductReview.objects.count()} تقييم")
 print("🛒 إنشاء الطلبات...")
 
 orders_data = [
-    {'user': customer_users[0], 'full_name': 'خالد أحمد محمد', 'phone': '776000002', 'city': 'عدن', 'address': 'شارع الرئيسي، بالقرب من مسجد النور', 'subtotal': Decimal('90000'), 'status': 'delivered', 'payment_method': 'cash', 'is_paid': True},
-    {'user': customer_users[1], 'full_name': 'فاطمة علي سعيد', 'phone': '776000003', 'city': 'تعز', 'address': 'حي الحصب، شارع 26 سبتمبر', 'subtotal': Decimal('55000'), 'status': 'shipped', 'payment_method': 'transfer', 'is_paid': True},
-    {'user': customer_users[2], 'full_name': 'عمر حسن العمري', 'phone': '776000004', 'city': 'حضرموت', 'address': 'المكلا، شارع خالد بن الوليد', 'subtotal': Decimal('105000'), 'status': 'delivered', 'payment_method': 'cash', 'is_paid': True},
-    {'user': customer_users[3], 'full_name': 'ريم سعيد الأحمدي', 'phone': '776000005', 'city': 'إب', 'address': 'مدينة إب، حي السلام', 'subtotal': Decimal('350000'), 'status': 'delivered', 'payment_method': 'transfer', 'is_paid': True},
-    {'user': customer_users[0], 'full_name': 'خالد أحمد محمد', 'phone': '776000002', 'city': 'عدن', 'address': 'شارع الرئيسي', 'subtotal': Decimal('25000'), 'status': 'cancelled', 'payment_method': 'cash', 'is_paid': False},
-    {'user': customer_users[4], 'full_name': 'ماجد الشرعبي', 'phone': '776000006', 'city': 'تعز', 'address': 'شارع جمال', 'subtotal': Decimal('47000'), 'status': 'pending', 'payment_method': 'cash', 'is_paid': False},
+    {'user': customer_users[0], 'full_name': 'خالد أحمد محمد', 'phone': '777161670', 'city': 'عدن', 'address': 'شارع الرئيسي، بالقرب من مسجد النور', 'subtotal': Decimal('90000'), 'status': 'delivered', 'payment_method': 'cash', 'is_paid': True},
+    {'user': customer_users[1], 'full_name': 'فاطمة علي سعيد', 'phone': '777161670', 'city': 'تعز', 'address': 'حي الحصب، شارع 26 سبتمبر', 'subtotal': Decimal('55000'), 'status': 'shipped', 'payment_method': 'transfer', 'is_paid': True},
+    {'user': customer_users[2], 'full_name': 'عمر حسن العمري', 'phone': '777161670', 'city': 'حضرموت', 'address': 'المكلا، شارع خالد بن الوليد', 'subtotal': Decimal('105000'), 'status': 'delivered', 'payment_method': 'cash', 'is_paid': True},
+    {'user': customer_users[3], 'full_name': 'ريم سعيد الأحمدي', 'phone': '777161670', 'city': 'إب', 'address': 'مدينة إب، حي السلام', 'subtotal': Decimal('350000'), 'status': 'delivered', 'payment_method': 'transfer', 'is_paid': True},
+    {'user': customer_users[0], 'full_name': 'خالد أحمد محمد', 'phone': '777161670', 'city': 'عدن', 'address': 'شارع الرئيسي', 'subtotal': Decimal('25000'), 'status': 'cancelled', 'payment_method': 'cash', 'is_paid': False},
+    {'user': customer_users[4], 'full_name': 'ماجد الشرعبي', 'phone': '777161670', 'city': 'تعز', 'address': 'شارع جمال', 'subtotal': Decimal('47000'), 'status': 'pending', 'payment_method': 'cash', 'is_paid': False},
 ]
 
 orders = []

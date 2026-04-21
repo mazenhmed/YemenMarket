@@ -72,7 +72,7 @@ const StoreDetail = () => {
             </div>
             <div style={{marginTop: '1.5rem'}}>
               <a 
-                href={`https://wa.me/${store.phone || '967770000000'}?text=${encodeURIComponent(`مرحباً ${store.store_name}.. لقد زرت متجركم على منصة سوق اليمن وأود الاستفسار عن:`)}`}
+                href={`https://wa.me/${store.owner_phone || store.phone || '777161670'}?text=${encodeURIComponent(`مرحباً ${store.store_name}.. لقد زرت متجركم على منصة يمن ماركت وأود الاستفسار عن:`)}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="btn"

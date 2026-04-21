@@ -115,6 +115,7 @@ export const getOrderInvoice = (id) => API.get(`/orders/checkout/${id}/invoice/`
 export const getPaymentAccounts = () => API.get('/orders/payment-accounts/');
 export const updatePaymentAccount = (id, data) => API.patch(`/orders/payment-accounts/${id}/`, data);
 export const createPaymentAccount = (data) => API.post('/orders/payment-accounts/', data);
+export const deletePaymentAccount = (id) => API.delete(`/orders/payment-accounts/${id}/`);
 
 // ========== Admin ==========
 export const getAdminStats = () => API.get('/users/admin/stats/');
