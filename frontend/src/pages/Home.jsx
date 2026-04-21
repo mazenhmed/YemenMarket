@@ -21,9 +21,9 @@ const FALLBACK_PRODUCTS = [
 ];
 
 const FALLBACK_STORES = [
-  { id: 1, store_name: 'متجر التقنية الحديثة', rating: '4.8', city: 'صنعاء', is_verified: true },
-  { id: 2, store_name: 'أزياء صنعاء', rating: '4.7', city: 'صنعاء', is_verified: true },
-  { id: 3, store_name: 'بيت العسل اليمني', rating: '4.9', city: 'تعز', is_verified: true },
+  { id: 1, store_name: 'متجر التقنية الحديثة', rating: '4.8', city: 'صنعاء', is_verified: true, logo: 'https://cdn-icons-png.flaticon.com/512/619/619153.png' },
+  { id: 2, store_name: 'أزياء صنعاء', rating: '4.7', city: 'صنعاء', is_verified: true, logo: 'https://cdn-icons-png.flaticon.com/512/3050/3050239.png' },
+  { id: 3, store_name: 'بيت العسل اليمني', rating: '4.9', city: 'تعز', is_verified: true, logo: 'https://cdn-icons-png.flaticon.com/512/2101/2101740.png' },
 ];
 
 const colors = ['#059669', '#6366f1', '#f59e0b', '#ef4444', '#ec4899', '#3b82f6', '#8b5cf6', '#14b8a6'];
@@ -185,8 +185,12 @@ const Home = () => {
           <div className="stores-grid">
             {stores.map((store, i) => (
               <Link to={`/store/${store.id}`} key={store.id} className="store-card">
-                <div className="store-avatar" style={{ background: `linear-gradient(135deg, ${colors[i % colors.length]}, ${colors[(i + 1) % colors.length]})` }}>
-                  {(store.store_name || 'م')[0]}
+                <div className="store-avatar" style={{ background: `linear-gradient(135deg, ${colors[i % colors.length]}, ${colors[(i + 1) % colors.length]})`, overflow: 'hidden' }}>
+                  {store.logo ? (
+                    <img src={store.logo} alt={store.store_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                    (store.store_name || 'م')[0]
+                  )}
                 </div>
                 <div>
                   <div className="store-name">{store.store_name}</div>

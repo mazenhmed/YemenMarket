@@ -27,6 +27,7 @@ class ProductSerializer(serializers.ModelSerializer):
     category_name = serializers.SerializerMethodField()
     vendor_name = serializers.ReadOnlyField(source='vendor.store_name')
     vendor_id = serializers.ReadOnlyField(source='vendor.id')
+    vendor_logo = serializers.ImageField(source='vendor.logo', read_only=True)
     discount_percentage = serializers.ReadOnlyField()
     is_on_sale = serializers.ReadOnlyField()
     gallery_images = ProductImageSerializer(many=True, read_only=True)

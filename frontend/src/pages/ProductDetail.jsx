@@ -93,7 +93,14 @@ const ProductDetail = () => {
           </div>
 
           <div className="product-detail-info">
-            <Link to={`/store/${product.vendor_id || product.vendor}`} className="product-vendor">{product.vendor_name || 'متجر'}</Link>
+            <Link to={`/store/${product.vendor_id || product.vendor}`} className="product-vendor" style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', textDecoration: 'none', background: 'rgba(16, 185, 129, 0.05)', padding: '0.4rem 1rem', borderRadius: '50px', width: 'fit-content', border: '1px solid rgba(16, 185, 129, 0.1)' }}>
+              {product.vendor_logo ? (
+                <img src={product.vendor_logo} alt={product.vendor_name} style={{ width: '28px', height: '28px', borderRadius: '50%', objectFit: 'cover' }} />
+              ) : (
+                <span style={{ fontSize: '1.2rem' }}>🏪</span>
+              )}
+              <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>{product.vendor_name || 'متجر'}</span>
+            </Link>
             <h1 className="detail-title">{product.name}</h1>
 
             <div className="detail-rating">
