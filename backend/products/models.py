@@ -26,7 +26,7 @@ class Product(models.Model):
         ('deleted', 'Deleted'),
     )
     name = models.CharField(max_length=255)
-    description = models.TextField()
+    description = models.TextField(blank=True)
     price = models.DecimalField(max_digits=12, decimal_places=2)
     compare_price = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True)  # original price for discounts
     stock_quantity = models.IntegerField(default=0)

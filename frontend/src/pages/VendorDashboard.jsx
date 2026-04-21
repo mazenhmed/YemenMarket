@@ -181,8 +181,23 @@ const VendorDashboard = () => {
       setIsEditing(false);
       setEditingProductId(null);
     } catch (err) {
-      const msg = err.response?.data?.image ? 'حدث خطأ في الصورة.' : 'فشل الحفظ، تأكد من البيانات.';
-      toast.error(msg);
+      if (err.response && err.response.data) {
+        // Extract field-specific error messages
+        const errorData = err.response.data;
+        let errorMessage = 'فشل الحفظ، تأكد من البيانات: ';
+        
+        if (typeof errorData === 'object') {
+          const errors = Object.entries(errorData)
+            .map(([field, msgs]) => `${field}: ${Array.isArray(msgs) ? msgs.join(', ') : msgs}`)
+            .join(' | ');
+          errorMessage += errors;
+        } else {
+          errorMessage = 'حدث خطأ غير متوقع في السيرفر.';
+        }
+        toast.error(errorMessage);
+      } else {
+        toast.error('فشل الحفظ، تأكد من اتصالك بالسيرفر.');
+      }
     }
     setSubmitting(false);
   };
