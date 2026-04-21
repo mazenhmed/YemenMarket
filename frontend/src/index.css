@@ -5292,4 +5292,15 @@ button {
   .store-verification-banner {
     padding: 1rem;
   }
+
+  /* Fix Notifications Dropdown Overflow */
+  .notification-dropdown {
+    position: fixed;
+    top: 70px; /* Below navbar */
+    left: 10px !important;
+    right: 10px !important;
+    width: auto !important;
+    max-width: none !important;
+    z-index: 1050;
+  }
 }

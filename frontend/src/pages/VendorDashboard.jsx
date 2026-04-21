@@ -392,11 +392,11 @@ const VendorDashboard = () => {
           </div>
         </div>
 
-        {myStore && !myStore.is_verified && (
+        {myStore && myStore.status !== 'approved' && (
           <div className="store-verification-banner" style={{background: '#fffbeb', padding: '1.5rem', borderRadius: '8px', border: '1px solid #fde68a', marginBottom: '2rem'}}>
-            <h3 style={{color: '#d97706', marginBottom: '0.5rem'}}>⚠️ متجرك بانتظار التوثيق ({getStatusLabel(myStore.status).text})</h3>
+            <h3 style={{color: '#d97706', marginBottom: '0.5rem'}}>⚠️ متجرك بانتظار المراجعة والتوثيق ({getStatusLabel(myStore.status).text})</h3>
             <p style={{color: '#92400e', marginBottom: '1rem'}}>
-              مرحباً بك في يمن ماركت! لنشر منتجاتك للعامة، بجب عليك رفع وثيقة إثبات الهوية (بطاقة شخصية أو سجل تجاري واضح).
+              مرحباً بك في يمن ماركت! لنشر منتجاتك للعامة والحصول على الموافقة، بجب عليك رفع وثيقة إثبات الهوية (بطاقة شخصية أو سجل تجاري واضح).
             </p>
             {myStore.admin_notes && (
               <p style={{color: '#dc2626', fontWeight: 'bold', marginBottom: '1rem'}}>

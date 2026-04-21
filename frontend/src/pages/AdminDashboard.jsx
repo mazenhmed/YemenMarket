@@ -321,8 +321,14 @@ const AdminDashboard = () => {
                             {store.status === 'pending' && store.id_document && <span style={{ color: '#f59e0b', fontSize: '0.8rem' }}>📎 مرفق هوية</span>}
                           </div>
                         </div>
-                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                           <button className="action-btn" onClick={() => setSelectedStore(store)}>عرض التفاصيل</button>
+                          {store.status === 'pending' && (
+                            <button className="action-btn success" onClick={() => handleStoreAction(store.id, 'approved')}>✅ توثيق وقبول</button>
+                          )}
+                          {!store.is_verified && store.status === 'approved' && (
+                            <button className="action-btn success" onClick={() => handleStoreAction(store.id, 'approved')}>✅ منح شارة التوثيق</button>
+                          )}
                           {store.status !== 'suspended' && (
                             <button className="action-btn danger" onClick={() => handleStoreAction(store.id, 'suspended')}>وقف</button>
                           )}
