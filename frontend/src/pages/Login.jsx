@@ -75,14 +75,18 @@ const Login = () => {
 
       finalizeLogin(access, refresh, user);
     } catch (err) {
-      console.error('Login error detail:', err.response?.data);
+      console.error('Login error detail:', err.response?.data, err.code);
       const backendError = err.response?.data?.error;
       const backendDetails = err.response?.data?.details;
 
       if (backendError) {
         setError(`${backendError}${backendDetails ? ': ' + backendDetails : ''}`);
+      } else if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
+        setError('انتهت مهلة الاتصال. السيرفر قد يكون في وضع السكون، يرجى المحاولة مرة أخرى بعد قليل.');
+      } else if (err.code === 'ERR_NETWORK' || !err.response) {
+        setError('تعذر الاتصال بالسيرفر. تأكد من اتصالك بالإنترنت وأن السيرفر يعمل.');
       } else {
-        setError('تعذر الاتصال بالخادم. يرجى التأكد من تشغيل السيرفر.');
+        setError('حدث خطأ غير متوقع. يرجى المحاولة لاحقاً.');
       }
       setIsLoading(false);
     }

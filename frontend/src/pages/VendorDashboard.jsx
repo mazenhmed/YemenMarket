@@ -315,6 +315,11 @@ const VendorDashboard = () => {
           <form className="auth-form" onSubmit={handleCreateStore}>
             <div className="form-group" style={{ textAlign: 'center' }}>
               <label>شعار المتجر (اختياري)</label>
+              {storeForm.logo instanceof File && (
+                <div style={{textAlign: 'center', margin: '0.5rem 0 1rem'}}>
+                  <img src={URL.createObjectURL(storeForm.logo)} alt="Preview" style={{width: '90px', height: '90px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--primary-400)', padding: '3px'}} />
+                </div>
+              )}
               <input type="file" accept="image/*" onChange={(e) => setStoreForm({...storeForm, logo: e.target.files[0]})} style={{background: '#f8fafc', padding: '0.8rem', borderRadius: '10px', width: '100%'}} />
             </div>
             <div className="form-row">
@@ -612,9 +617,13 @@ const VendorDashboard = () => {
             <h3>إعدادات وتفاصيل المتجر</h3>
             <div className="auth-card" style={{ maxWidth: '600px', margin: '0 auto', boxShadow: 'none', border: '1px solid var(--glass-border)' }}>
               <form className="auth-form" onSubmit={handleUpdateStoreSettings}>
-                {myStore.logo && (
+                {(settingsForm.logo instanceof File ? URL.createObjectURL(settingsForm.logo) : myStore.logo) && (
                    <div style={{textAlign: 'center', marginBottom: '1.5rem'}}>
-                     <img src={myStore.logo} alt="شعار" style={{width: '90px', height: '90px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--primary-400)', padding: '3px'}} />
+                     <img 
+                        src={settingsForm.logo instanceof File ? URL.createObjectURL(settingsForm.logo) : myStore.logo} 
+                        alt="شعار" 
+                        style={{width: '90px', height: '90px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--primary-400)', padding: '3px'}} 
+                     />
                    </div>
                 )}
                 <div className="form-group">
@@ -658,6 +667,11 @@ const VendorDashboard = () => {
               <form className="auth-form" onSubmit={handleSaveProduct}>
                 <div className="form-group" style={{ textAlign: 'center' }}>
                   <label>صورة المنتج {isEditing ? '(اترك الحقل فارغاً للاحتفاظ بالحاليه)' : '*'}</label>
+                  {productForm.image instanceof File && (
+                    <div style={{margin: '0.5rem 0 1rem'}}>
+                      <img src={URL.createObjectURL(productForm.image)} alt="Preview" style={{width: '120px', height: '120px', borderRadius: '12px', objectFit: 'cover', border: '2px solid #e2e8f0', boxShadow: '0 4px 6px rgba(0,0,0,0.1)'}} />
+                    </div>
+                  )}
                   <input type="file" accept="image/*" 
                     onChange={e => setProductForm({ ...productForm, image: e.target.files[0] })}
                     style={{background: '#f8fafc', padding: '0.8rem', borderRadius: '10px', width: '100%'}} />

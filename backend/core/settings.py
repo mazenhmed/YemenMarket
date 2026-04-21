@@ -59,11 +59,24 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = 'core.urls'
 
-# CORS — يُحدَّد بدقة، لا يُسمح لأي موقع بالوصول
+# CORS — يسمح لتطبيق الويب وتطبيق الجوال (Capacitor) بالوصول
 cors_origins = os.environ.get('CORS_ALLOWED_ORIGINS', 'http://localhost:5173,http://127.0.0.1:5173')
 CORS_ALLOWED_ORIGINS = [o.strip() for o in cors_origins.split(',') if o.strip()]
-# تم حذف CORS_ALLOW_ALL_ORIGINS — كان يُلغي القائمة المحددة ويفتح الـ API للجميع
+
+# إضافة origins خاصة بتطبيق Capacitor للجوال
+CAPACITOR_ORIGINS = [
+    'capacitor://localhost',
+    'http://localhost',
+    'https://localhost',
+    'ionic://localhost',
+]
+for origin in CAPACITOR_ORIGINS:
+    if origin not in CORS_ALLOWED_ORIGINS:
+        CORS_ALLOWED_ORIGINS.append(origin)
+
 CORS_ALLOW_CREDENTIALS = True
+# السماح بطلبات من تطبيق الجوال التي قد لا تحمل origin header
+CORS_ALLOW_ALL_ORIGINS = os.environ.get('CORS_ALLOW_ALL', 'False').lower() in ('true', '1', 'yes')
 
 TEMPLATES = [
     {
