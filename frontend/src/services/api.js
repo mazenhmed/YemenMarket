@@ -149,4 +149,13 @@ export const updateVendorPaymentAccount = (id, data) => API.patch(`/vendors/paym
 export const deleteVendorPaymentAccount = (id) => API.delete(`/vendors/payment-accounts/${id}/`);
 export const getVendorPublicPaymentAccounts = (vendorId) => API.get(`/vendors/payment-accounts/public/?vendor_id=${vendorId}`);
 
+// --- Helper Functions ---
+export const getMediaUrl = (path) => {
+  if (!path) return null;
+  if (path.startsWith('http')) return path;
+  if (!path.startsWith('/')) path = '/' + path;
+  const baseUrl = API.defaults.baseURL.replace('/api', '');
+  return `${baseUrl}${path}`;
+};
+
 export default API;
